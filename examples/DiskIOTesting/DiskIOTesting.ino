@@ -7,8 +7,8 @@ diskIO dio;  // One instance of diskIO.
 bool rslt = false;
 int br = 0;
 size_t bw = 0;
-char buff[8192];
-char sbuff[256];
+char buff[8192]; // Disk IO buffer.
+char sbuff[256]; // readLine buffer.
 
 // A simple read line function.
 char *readLine(char *s)
@@ -40,6 +40,7 @@ char *readLine(char *s)
 	}
 }
 
+// Change '32GSDFAT32' to a volume name of your drives.
 char *device = "/32GSDFAT32/test1.txt";
 
 void setup()
