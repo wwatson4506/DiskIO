@@ -14,5 +14,6 @@ The objectives are:
 - Be able to parse a full path spec including relative path specs and wildcard processing.
 - Use a more standard directory listing including time and dates stamps using the Teensy builtin RTC.
 - Properly process hot plugging.
+- Keep all of this compatible with SD and FS.
 
 So far most of this is working well but still needs a lot more work. Really don't know if this is something that might be useful but it is fun to play with:)
