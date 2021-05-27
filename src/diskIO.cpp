@@ -33,6 +33,9 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) {
 	*ms10 = second() & 1 ? 100 : 0;
 }
 
+// ------------------------------------------------
+// Break down time and date values
+// ------------------------------------------------
 struct tm decode_fattime (uint16_t td, uint16_t tt)
 {
     struct tm tx;
@@ -44,16 +47,6 @@ struct tm decode_fattime (uint16_t td, uint16_t tt)
 	tx.tm_min= (tt>>5) & (64-1);
 	tx.tm_sec= 2*(tt& (32-1));
 	return tx;
-
-    /* Pack date and time into a DWORD variable */
-	/*
-    return   (((DWORD)tx.tm_year-60) << 25)
-            | ((DWORD)tx.tm_mon << 21)
-            | ((DWORD)tx.tm_mday << 16)
-            | ((DWORD)tx.tm_hour << 11)
-            | ((DWORD)tx.tm_min << 5)
-            | ((DWORD)tx.tm_sec >> 1);
-			*/
 }
 
 // -----------------------------------
@@ -69,7 +62,7 @@ uint8_t diskIO::error(uint8_t deviceNumber) {
 bool diskIO::init() {
 
 	setSyncProvider((getExternalTime)rtc_get);	// the function to get the time from the RTC
-	FsDateTime::setCallback(dateTime);			// Set callback
+	FsDateTime::setCallback(dateTime);		// Set callback
 	
 	myusb.begin();
 
@@ -125,6 +118,7 @@ bool diskIO::isConnected(uint8_t deviceNumber) {
 	return true;
 }
 
+//----------------------------------------------------------------
 // Function to handle one MS Drive...
 // (KurtE).
 // ---------------------------------------
@@ -147,8 +141,7 @@ void diskIO::processMSDrive(uint8_t drive_number, msController &msDrive, UsbFs &
 
     if (mp[i].begin((USBMSCDevice*)msc.usbDrive(), true, (i - slot) + 1)) {
       drvIdx[i].driveNumber = drive_number;
-      mp[i].getVolumeLabel(drvIdx[i].name,
-									   sizeof(drvIdx[i].name));
+      mp[i].getVolumeLabel(drvIdx[i].name, sizeof(drvIdx[i].name));
       drvIdx[i].fatType = mp[i].fatType();
       drvIdx[i].ldNumber = i;
       drvIdx[i].driveType = msc.usbDrive()->usbType();
@@ -164,7 +157,7 @@ void diskIO::processMSDrive(uint8_t drive_number, msController &msDrive, UsbFs &
 }
 
 //----------------------------------------------------------------
-// Function to handle one MS Drive...
+// Mount the SDIO card if possible.
 // (KurtE).
 //----------------------------------------------------------------
 void diskIO::processSDDrive(uint8_t drive_number)
@@ -215,8 +208,7 @@ void diskIO::ProcessSPISD(uint8_t drive_number) {
   if (count_mp >= CNT_PARITIONS) return; // don't overrun
     if (mp[i].begin(sdSPI.card(), true, (i - slot) + 1)) {
       drvIdx[i].driveNumber = LOGICAL_DRIVE_SDSPI;
-      mp[i].getVolumeLabel(drvIdx[i].name,
-								  sizeof(drvIdx[i].name));
+      mp[i].getVolumeLabel(drvIdx[i].name, sizeof(drvIdx[i].name));
       drvIdx[i].fatType = mp[i].fatType();
       drvIdx[i].ldNumber = i;
       drvIdx[i].driveType = sdSPI.card()->type();
@@ -435,7 +427,7 @@ bool diskIO::wildcardMatch(const char *pattern, const char *filename) {
 //---------------------------------------------------------------
 // Get path spec and wildcard pattern
 // params[in]
-//	specs: Pointer to path spec buffer.
+//	specs:   Pointer to path spec buffer.
 //	pattern: Pointer to buffer to hold wild card pattern if there.
 // params[out]
 //	returns: true for wildcard pattern found else false.
@@ -467,7 +459,6 @@ bool diskIO::getWildCard(char *specs, char *pattern)
 //-----------------------------
 // Directory Listing functions.
 //-----------------------------
-
 // List a directory from given path. Can include a volume name delimeted with
 // '/name/' at the begining of path string.
 bool diskIO::lsDir(char *dirPath) {
@@ -776,7 +767,7 @@ bool diskIO::rename(const char *oldpath, const char *newpath) {
 		return false; // Invalid path spec.
 	}
 	// Check for ".", ".." and "../"
-	if(!parsePathSpec(tempPathNew)) {
+	if(!parsePathSpec(tempPathNew)) { // This one may be silly...
 		drvIdx[currDrv].lastError = INVALID_PATH_NAME;
 		return false; // Invalid path spec.
 	}
@@ -800,6 +791,7 @@ bool diskIO::open(void *fp, const char* path, oflag_t oflag) {
 	char tempPath[256];
 	strcpy(tempPath,path); // Isolate original path pointer from changes below.
 
+	// Setup two types. One for MSC and one for SDIO/SPISD. 
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
 
@@ -850,6 +842,7 @@ bool diskIO::open(void *fp, const char* path, oflag_t oflag) {
 // close file or directory.
 //---------------------------------------------------------------------------
 bool diskIO::close(void *fp) {
+
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp ); 
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
 	uint8_t iface = drvIdx[currDrv].ifaceType;
@@ -879,6 +872,7 @@ bool diskIO::close(void *fp) {
 // Read from an open file.
 //---------------------------------------------------------------------------
 int diskIO::read(void *fp, char *buf, size_t count) {
+
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
 	uint8_t iface = drvIdx[currDrv].ifaceType;
@@ -911,6 +905,7 @@ int diskIO::read(void *fp, char *buf, size_t count) {
 // Write to an open file.
 //---------------------------------------------------------------------------
 size_t diskIO::write(void *fp, char *buf, size_t count) {
+
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
 	uint8_t iface = drvIdx[currDrv].ifaceType;
@@ -943,6 +938,7 @@ size_t diskIO::write(void *fp, char *buf, size_t count) {
 // Seek to an offset in an open file.
 //---------------------------------------------------------------------------
 off_t diskIO::lseek(void *fp, off_t offset, int whence) {
+
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
 	uint8_t iface = drvIdx[currDrv].ifaceType;
