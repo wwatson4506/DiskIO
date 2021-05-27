@@ -5,27 +5,27 @@
 
 #include "mscFS.h"
 
-#define ifLower(c)		((c) >= 'a' && (c) <= 'z')
 #define CNT_MSDRIVES 4
 #define CNT_PARITIONS 24 
 
+#define LOGICAL_DRIVE_SDIO  4
+#define LOGICAL_DRIVE_SDSPI 5
+#define SD_SPI_CS 10
+#define SPI_SPEED SD_SCK_MHZ(40)  // adjust to sd card 
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
 #define SD_SPICONFIG SdioConfig(FIFO_SDIO)
 
-#define LOGICAL_DRIVE_SDIO  4
-#define LOGICAL_DRIVE_SDSPI 5
-
-#define SD_SPI_CS 10
-#define SPI_SPEED SD_SCK_MHZ(40)  // adjust to sd card 
-
+// Path spec defines.
 #define DIRECTORY_SEPARATOR "/"
 #define MAX_FILENAME_LEN   256
 #define MAX_SUB_DEPTH	256
 
+// Types of device hardware interfaces.
 #define USB_TYPE	0
 #define SDIO_TYPE	1
 #define SPI_TYPE	2
 
+// Four partition slot per physical device
 #define SLOT_OFFSET 4
 
 // Error codes
@@ -46,34 +46,24 @@
 #define WRITE_ERROR_SD		14
 #define FTELL_ERROR			15
 
+#define ifLower(c) ((c) >= 'a' && (c) <= 'z')
+
 //#define TalkToMe  1 // Uncomment this for debug
-/*
-typedef struct tm
-	{ int  tm_sec;
-	  int tm_min;
-	  int tm_hour;
-	  int tm_mday;
-	  int tm_mon;
-	  int tm_year;
-	  int tm_wday;
-	  int tm_yday;
-	  int tm_isdst;
-} tm_t;
-*/
+
 // Logical drive device descriptor struct based on partitions.
 typedef struct {
 	msController *thisDrive = nullptr;
-	char		name[32];        // Volume name as a drive name.
+	char	name[32];        // Volume name as a drive name.
 	char	currentPath[256];    // Current default path spec.
-	char		fullPath[256];	 // Full path name. Includes Logical drive name.
-	bool		valid = false;   // If true device is connected and mounted.
-	uint8_t		driveNumber = 0; // Physical drive number.
-	uint8_t		ldNumber = 0;    // Logical drive number.
-	uint8_t		driveType;       // USB, SDHC or SDHX
-	uint8_t		devAddress;      // MSC device address
-	uint8_t		fatType = 0;     // FAT32 or ExFat
-	uint8_t		ifaceType = 0;	 // Interface type USB, SDHC, SPI.
-	uint8_t		lastError = 0;
+	char	fullPath[256];	 // Full path name. Includes Logical drive name.
+	bool	valid = false;   // If true device is connected and mounted.
+	uint8_t	driveNumber = 0; // Physical drive number.
+	uint8_t	ldNumber = 0;    // Logical drive number.
+	uint8_t	driveType;       // USB, SDHC or SDHX
+	uint8_t	devAddress;      // MSC device address
+	uint8_t	fatType = 0;     // FAT32 or ExFat
+	uint8_t	ifaceType = 0;	 // Interface type USB, SDHC, SPI.
+	uint8_t	lastError = 0;
 } deviceDecriptorEntry_t;
 
 class diskIO : public PFsVolume
