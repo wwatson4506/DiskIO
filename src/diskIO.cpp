@@ -463,7 +463,7 @@ bool diskIO::getWildCard(char *specs, char *pattern)
 // '/name/' at the begining of path string.
 bool diskIO::lsDir(char *dirPath) {
 #ifdef TalkToMe
-  Serial.printf(F("lsDir %s...\r\n", dirPath));
+  Serial.printf("lsDir %s...\r\n", dirPath);
 #endif
 	PFsFile dir;
 	char pattern[256];
