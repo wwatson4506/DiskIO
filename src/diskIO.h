@@ -45,7 +45,7 @@
 #define WRITE_ERROR_USB		13
 #define WRITE_ERROR_SD		14
 #define FTELL_ERROR			15
-
+#define LDRIVE_NOT_FOUND	252	
 #define ifLower(c) ((c) >= 'a' && (c) <= 'z')
 
 //#define TalkToMe  1 // Uncomment this for debug
@@ -63,7 +63,7 @@ typedef struct {
 	uint8_t	devAddress;      // MSC device address
 	uint8_t	fatType = 0;     // FAT32 or ExFat
 	uint8_t	ifaceType = 0;	 // Interface type USB, SDHC, SPI.
-	uint8_t	lastError = 0;
+//	uint8_t	lastError = 0;
 } deviceDecriptorEntry_t;
 
 class diskIO : public PFsVolume
@@ -72,12 +72,12 @@ public:
 	PFsVolume mp[CNT_PARITIONS]; // Setup an array of global mount points.
 	deviceDecriptorEntry_t drvIdx[CNT_PARITIONS]; // An array of device descriptors.
 
-	uint8_t error(uint8_t deviceNumber);
+	uint8_t error(void);
 	bool init();
-	int  getLogicalDeviceNumber(const char **path);	
-	int  isDriveSpec(const char *driveSpec);
-	int  changeDrive(const char *driveSpec);
-	bool chdir(const char *path);
+	int  getLogicalDeviceNumber(char *path);	
+	int  isDriveSpec(char *driveSpec);
+	int  changeDrive(char *driveSpec);
+	bool chdir(char *path);
 	bool mkdir(const char *path);
 	bool rmdir(const char *path);
 	bool exists(const char *path);
