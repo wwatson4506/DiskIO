@@ -41,8 +41,9 @@ char *readLine(char *s) {
 //const char *device = "test1.txt";
 // Or you can specify a logical drive number (partition number)
 // followed with a colon before the path name. 24 patitions are allowed. 0-23.
-//const char *device = "22:test1.txt";
-const char *device = "/32GEXFATP3/test1.txt";
+
+const char *device = "0:test1.txt";
+//const char *device = "/32GEXFATP3/test1.txt";
 
 void setup() {
   // Open serial communications and wait for port to open:
