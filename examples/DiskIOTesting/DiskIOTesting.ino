@@ -2,9 +2,9 @@
 #include "Arduino.h"
 #include "mscFS.h"
 #include "diskIO.h"
+#include "T4_PowerButton.h"
 
 diskIO dio;  // One instance of diskIO.
-//bool rslt = false;
 int br = 0;
 int bw = 0;
 char buff[8192]; // Disk IO buffer.
@@ -41,16 +41,14 @@ char *readLine(char *s) {
 //const char *device = "test1.txt";
 // Or you can specify a logical drive number (partition number)
 // followed with a colon before the path name. 24 patitions are allowed. 0-23.
-const char *device = "20:test1.txt";
+//const char *device = "22:test1.txt";
+const char *device = "/32GEXFATP3/test1.txt";
 
-void setup()
-{
+void setup() {
   // Open serial communications and wait for port to open:
-  Serial.begin(9600);
    while (!Serial) {
     SysCall::yield(); // wait for serial port to connect.
   }
-
   Serial.printf("%c",12); // Clear screen (VT100).
   Serial.printf(F("DiskIO Testing\r\n\r\n"));
   Serial.printf(F("Initializing, please wait...\r\n\r\n"));
@@ -61,6 +59,9 @@ void setup()
   dio.listAvailableDrives(&Serial);
   Serial.printf(F("\r\n"));
 
+  if(!dio.lsDir((char *)"/"))
+	Serial.printf(F("lsDir() Failed: %s, Code: %d\r\n\r\n"), device, dio.error());
+  
   // Setup string of text to write to a file (test1.txt).
   sprintf(buff,"%s",(char *)F("This is a test line to test diskIO write() function"));
 
@@ -155,6 +156,6 @@ void loop(void) {
 
   dio.listAvailableDrives(&Serial);
   Serial.printf(F("Press enter to continue...\r\n"));
+
   readLine((char *)sbuff);
- 
 }
