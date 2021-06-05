@@ -1,4 +1,6 @@
 // diskIOtesting,ino
+// A simple sketch to demonstrate some DiskIO capabilities.
+
 #include "Arduino.h"
 #include "mscFS.h"
 #include "diskIO.h"
@@ -36,11 +38,11 @@ char *readLine(char *s) {
 	}
 }
 
-// Change '32GEXFATFD' to the volume name of one of your drives.
-//const char *device = "test1.txt";
+// Change 'device' to the volume name of one of your drives.
 // Or you can specify a logical drive number (partition number)
 // followed with a colon before the path name. 24 patitions are allowed. 0-23.
-
+// Use: 'listAvailableDrives(&Serial)' to list attached available volume labels
+// and logical drive numbers.
 const char *device = "0:test1.txt";
 //const char *device = "/32GEXFATP3/test1.txt";
 
@@ -49,11 +51,16 @@ void setup() {
    while (!Serial) {
     SysCall::yield(); // wait for serial port to connect.
   }
+  
+  // This line is use with VT100 capable terminal program.
   Serial.printf("%c",12); // Clear screen (VT100).
+  
   Serial.printf(F("DiskIO Testing\r\n\r\n"));
   Serial.printf(F("Initializing, please wait...\r\n\r\n"));
-
+  
+  // All initialization is done here.
   dio.init();
+  
   // Show a list of mounted partitions.
   Serial.printf(F("\r\nFound and mounted %d logical drives.\r\n"), dio.getVolumeCount());
   dio.listAvailableDrives(&Serial);
