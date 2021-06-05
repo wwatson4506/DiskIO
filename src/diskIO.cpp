@@ -529,6 +529,7 @@ bool diskIO::lsDir(char *dirPath) {
 		mscError = LDRIVE_NOT_FOUND;
 		return false; // Invalid logical drive.
 	}
+
 	// Get current path spec and add '/' + given path spec to it.
 	sprintf(tempPath, "%s%s", drvIdx[currDrv].currentPath, path);
 	// Setup full path name.
@@ -541,7 +542,7 @@ bool diskIO::lsDir(char *dirPath) {
 	// Show current logical drive name.
 	Serial.printf(F("Volume Label: %s\r\n"), drvIdx[currDrv].name);
 	// Show full path name (with logical drive name).
-	Serial.printf(F("Full Path: %s\r\n"), dirPath);
+	Serial.printf(F("Full Path: %s\r\n"), drvIdx[currDrv].fullPath);
 	// wildcards = true if any wildcards used else false.
 	wildcards = getWildCard((char *)tempPath,pattern);  
 	// Try to open the directory.
