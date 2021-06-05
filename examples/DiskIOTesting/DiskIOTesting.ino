@@ -2,7 +2,6 @@
 #include "Arduino.h"
 #include "mscFS.h"
 #include "diskIO.h"
-#include "T4_PowerButton.h"
 
 diskIO dio;  // One instance of diskIO.
 int br = 0;
