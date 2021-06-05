@@ -278,14 +278,16 @@ int diskIO::getLogicalDeviceNumber(char *path) {
 #ifdef TalkToMe
   Serial.printf("getLogicalDeviceNumber(%s)\r\n", path);
 #endif
-	const char *tempPath;
+	char str1[256];
+	char *tempPath;
 	char tempChar, ldNumber[256];
 	const char *strPtr;
 	char pathChar;
 	int i = 0, volume = -1;
 	uint8_t cntDigits = 0;
 	
-	tempPath = path;
+	strcpy(str1,path);  // Isolate pointer to path from changes below.
+	tempPath = str1;
 	if (!tempPath) return volume;	// Invalid path name?
 	
 	// Check if using logical device number ("0:" etc...).
@@ -310,7 +312,7 @@ int diskIO::getLogicalDeviceNumber(char *path) {
 	if (*tempPath == '/') { // Look for first '/'
 		do {
 			strPtr = drvIdx[i].name;	// Volume label.
-			tempPath = path;			// Path to search.
+			tempPath = str1;			// Path to search.
 			// Compare the volume label with path name.
 			do {
 				// Get a character to compare (with inc).
@@ -323,7 +325,7 @@ int diskIO::getLogicalDeviceNumber(char *path) {
 		// If a volume label is found, get the drive number and strip label from path.
 		if (i <= CNT_PARITIONS) {
 			volume = i;		// Volume number.
-			sprintf(path, "%s", tempPath); // Strip off the logical drive name (leave last '/').
+			strcpy(path, tempPath); // Strip off the logical drive name (leave last '/').
 			return volume;
 		}
 	}
@@ -527,7 +529,6 @@ bool diskIO::lsDir(char *dirPath) {
 		mscError = LDRIVE_NOT_FOUND;
 		return false; // Invalid logical drive.
 	}
-
 	// Get current path spec and add '/' + given path spec to it.
 	sprintf(tempPath, "%s%s", drvIdx[currDrv].currentPath, path);
 	// Setup full path name.
@@ -625,10 +626,12 @@ bool diskIO::lsFiles(PFsFile *dir, char *pattern, bool wc) {
 // Check for a valid drive spec (/volume name/).
 // Return possible path spec stripped of drive spec.
 int diskIO::isDriveSpec(char *driveSpec) {
+	const char *ds = driveSpec;
 	int  rslt = getLogicalDeviceNumber(driveSpec);
 	if(rslt < 0) { // Returned -1, Missing or invalid drive spec. 
 		return rslt;
 	}
+	strcpy((char *)driveSpec,ds); // Save file path name stripped of drive spec.
 	return rslt;
 }
 
@@ -638,10 +641,8 @@ int diskIO::isDriveSpec(char *driveSpec) {
 int diskIO::changeDrive(char *driveSpec) {
 	int rslt = isDriveSpec(driveSpec); // returns ds stripped of drive spec.
 	if(rslt < 0) { // Returned -1, Missing or invalid drive spec. 
-		return rslt;
-	} else {
 		mscError = LDRIVE_NOT_FOUND;
-		return false; // Invalid logical drive.
+		return rslt;
 	}
 	currDrv = rslt;       // Set the current working drive number.
 	mp[rslt].chvol();     // Change the volume to this logical drive.
