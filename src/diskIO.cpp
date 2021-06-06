@@ -500,18 +500,19 @@ bool diskIO::lsDir(char *dirPath) {
 	PFsFile dir;
 	char pattern[256];
 	char path[256];
-	char tempPath[256];
 	bool wildcards = false;
 	int newDrv = 0;
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 
 	path[0] = 0;
-	tempPath[0] = 0;
 	pattern[0] = 0;
 	
 	strcpy(path,dirPath); // Isolate original path pointer from changes below.
 	// If no path specs given just display current path.	
-	if(path == (const char *)"") {
+
+	if(path[0] == '\0') {
+		Serial.printf(F("Volume Label: %s\r\n"), drvIdx[currDrv].name);
+		Serial.printf(F("Full Path: %s\r\n"), drvIdx[currDrv].fullPath);
 		// Try to open the directory.
 		if(!dir.open(drvIdx[drive].currentPath)) {
 			mscError = INVALID_PATH_NAME;
@@ -529,24 +530,22 @@ bool diskIO::lsDir(char *dirPath) {
 		mscError = LDRIVE_NOT_FOUND;
 		return false; // Invalid logical drive.
 	}
-
-	// Get current path spec and add '/' + given path spec to it.
-	sprintf(tempPath, "%s%s", drvIdx[currDrv].currentPath, path);
-	// Setup full path name.
-	sprintf(drvIdx[currDrv].fullPath, "/%s%s", drvIdx[currDrv].name, path);
 	// Check for '.', '..', '../'.
-	if(!parsePathSpec(tempPath)) {
+	if(!parsePathSpec(path)) {
 		mscError = INVALID_PATH_NAME;
 		return false;	// Invalid path name.
 	}
 	// Show current logical drive name.
 	Serial.printf(F("Volume Label: %s\r\n"), drvIdx[currDrv].name);
+
 	// Show full path name (with logical drive name).
 	Serial.printf(F("Full Path: %s\r\n"), drvIdx[currDrv].fullPath);
+
 	// wildcards = true if any wildcards used else false.
-	wildcards = getWildCard((char *)tempPath,pattern);  
+	wildcards = getWildCard((char *)path,pattern);  
+
 	// Try to open the directory.
-	if(!dir.open(tempPath)) {
+	if(!dir.open(path)) {
 		mscError = INVALID_PATH_NAME;
 		return false;  // Invalid path name.
 	}
@@ -656,17 +655,22 @@ int diskIO::changeDrive(char *driveSpec) {
 //---------------------------------------------------------------------------
 bool diskIO::chdir(char *path) {
 	// Check for a logical drive change.
-	changeDrive(path); // do not care if -1 returned. Just means drive spec not 
-	                   // supplied.
-
+	// If just a drive spec return true. 
+	if((changeDrive(path) >= 0) && (strlen(path) == 1))	{
+		sprintf(drvIdx[currDrv].fullPath, "/%s",  drvIdx[currDrv].name);
+		 return true;
+	}
 	// Check for ".", ".." and "../"
 	if(!parsePathSpec(path)) {
 		mscError = INVALID_PATH_NAME;
 		return false; // Invalid path spec.
 	}
-	sprintf(drvIdx[currDrv].currentPath, "%s", path);
+	if(strlen(path) != 1)
+		sprintf(drvIdx[currDrv].currentPath, "%s%s", drvIdx[currDrv].currentPath, path);
+
 	if(mp[currDrv].chdir((const char *)drvIdx[currDrv].currentPath)) {
-		sprintf(drvIdx[currDrv].fullPath, "/%s%s", drvIdx[currDrv].name, path);
+		sprintf(drvIdx[currDrv].fullPath, "/%s%s",  drvIdx[currDrv].name,
+		drvIdx[currDrv].currentPath);
 		return true;
 	}
 	return false;
