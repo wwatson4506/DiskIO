@@ -89,8 +89,9 @@ bool diskIO::init() {
 	}
 	processSDDrive(LOGICAL_DRIVE_SDIO);
 	ProcessSPISD(LOGICAL_DRIVE_SDSPI);
-	currDrv = 0;	      // Set default drive to 0
-	mp[currDrv].chvol();  // Change the volume to this logical drive.
+	chdir("0:");
+//	currDrv = 0;	      // Set default drive to 0
+//	mp[currDrv].chvol();  // Change the volume to this logical drive.
 	return true;
 }
 
@@ -146,6 +147,7 @@ void diskIO::processMSDrive(uint8_t drive_number, msController &msDrive, UsbFs &
     if (mp[i].begin((USBMSCDevice*)msc.usbDrive(), true, (i - slot) + 1)) {
       drvIdx[i].driveNumber = drive_number;
       mp[i].getVolumeLabel(drvIdx[i].name, sizeof(drvIdx[i].name));
+	  sprintf(drvIdx[i].fullPath ,"/%s/", drvIdx[i].name);
       drvIdx[i].fatType = mp[i].fatType();
       drvIdx[i].ldNumber = i;
       drvIdx[i].driveType = msc.usbDrive()->usbType();
@@ -180,8 +182,8 @@ void diskIO::processSDDrive(uint8_t drive_number)
     if (count_mp >= CNT_PARITIONS) return; // don't overrun
     if (mp[i].begin(sd.card(), true, (i - slot) + 1)) {
       drvIdx[i].driveNumber = LOGICAL_DRIVE_SDIO;
-      mp[i].getVolumeLabel(drvIdx[i].name,
-									   sizeof(drvIdx[i].name));
+      mp[i].getVolumeLabel(drvIdx[i].name, sizeof(drvIdx[i].name));
+	  sprintf(drvIdx[i].fullPath ,"/%s/", drvIdx[i].name);
       drvIdx[i].fatType = mp[i].fatType();
       drvIdx[i].ldNumber = i;
       drvIdx[i].driveType = sd.card()->type();
@@ -213,6 +215,7 @@ void diskIO::ProcessSPISD(uint8_t drive_number) {
     if (mp[i].begin(sdSPI.card(), true, (i - slot) + 1)) {
       drvIdx[i].driveNumber = LOGICAL_DRIVE_SDSPI;
       mp[i].getVolumeLabel(drvIdx[i].name, sizeof(drvIdx[i].name));
+	  sprintf(drvIdx[i].fullPath ,"/%s/", drvIdx[i].name);
       drvIdx[i].fatType = mp[i].fatType();
       drvIdx[i].ldNumber = i;
       drvIdx[i].driveType = sdSPI.card()->type();
@@ -657,7 +660,7 @@ bool diskIO::chdir(char *path) {
 	// Check for a logical drive change.
 	// If just a drive spec return true. 
 	if((changeDrive(path) >= 0) && (strlen(path) == 1))	{
-		sprintf(drvIdx[currDrv].fullPath, "/%s",  drvIdx[currDrv].name);
+		sprintf(drvIdx[currDrv].fullPath, "/%s/",  drvIdx[currDrv].name);
 		 return true;
 	}
 	// Check for ".", ".." and "../"
