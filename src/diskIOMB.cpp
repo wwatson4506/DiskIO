@@ -2,6 +2,7 @@
   microBox.cpp - Library for Linux-Shell like interface for Arduino.
   Created by Sebastian Duell, 06.02.2015.
   More info under http://sebastian-duell.de
+  Heavily modified for Porting to Teensy T3.6, T4.0, T4.2, MicroMod?
   Released under GPLv3.
 */
 
