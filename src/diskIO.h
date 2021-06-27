@@ -46,6 +46,8 @@
 #define WRITE_ERROR_SD		14
 #define FTELL_ERROR			15
 #define LDRIVE_NOT_FOUND	252	
+#define DEVICE_NOT_CONNECTED 253;
+
 #define ifLower(c) ((c) >= 'a' && (c) <= 'z')
 
 //#define TalkToMe  1 // Uncomment this for debug
@@ -59,8 +61,8 @@ typedef struct {
 	bool	valid = false;   // If true device is connected and mounted.
 	uint8_t	driveNumber = 0; // Physical drive number.
 	uint8_t	ldNumber = 0;    // Logical drive number.
-	uint8_t	driveType;       // USB, SDHC or SDHX
-	uint8_t	devAddress;      // MSC device address
+	uint8_t	driveType = 0;       // USB, SDHC or SDHX
+	uint8_t	devAddress = 0;      // MSC device address
 	uint8_t	fatType = 0;     // FAT32 or ExFat
 	uint8_t	ifaceType = 0;	 // Interface type USB, SDHC, SPI.
 //	uint8_t	lastError = 0;
@@ -74,6 +76,7 @@ public:
 
 	uint8_t error(void);
 	bool init();
+	void checkDrivesConnected(void);
 	int  getLogicalDeviceNumber(char *path);	
 	int  isDriveSpec(char *driveSpec);
 	int  changeDrive(char *driveSpec);
