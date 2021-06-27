@@ -68,7 +68,7 @@ bool diskIO::init() {
 #ifdef TalkToMe
   Serial.printf("init()\r\n");
 #endif
-	uint8_t i = 0, j = 0;
+	uint8_t i = 0;
 	setSyncProvider((getExternalTime)rtc_get);	// the function to get the time from the RTC
 	FsDateTime::setCallback(dateTime);		// Set callback
 	
