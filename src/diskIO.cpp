@@ -557,7 +557,6 @@ bool diskIO::lsDir(char *dirPath) {
 	PFsFile dir;
 	char pattern[256];
 	char path[256];
-	char tempPath[256];
 	bool wildcards = false;
 	int newDrv = 0;
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
