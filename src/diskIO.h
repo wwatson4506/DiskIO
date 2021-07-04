@@ -80,12 +80,12 @@ public:
 	int  getLogicalDeviceNumber(char *path);	
 	int  isDriveSpec(char *driveSpec);
 	int  changeDrive(char *driveSpec);
-	bool chdir(char *path);
+	bool chdir(char *dirPath);
 	bool mkdir(const char *path);
 	bool rmdir(const char *path);
-	bool exists(const char *path);
+	bool exists(char *dirPath);
 	bool rename(const char *oldpath, const char *newpath);
-	bool open(void *fp, const char* path, oflag_t oflag = O_RDONLY);
+	bool open(void *fp, char* dirPath, oflag_t oflag = O_RDONLY);
 	bool close(void *fp);
 	int  read(void *fp, char *buf, size_t count);
 	size_t  write(void *fp, char *buf, size_t count);

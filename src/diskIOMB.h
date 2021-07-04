@@ -75,6 +75,7 @@ private:
     static void ListDrivesCB(char **pParam, uint8_t parCnt);
     static void ChangeDirCB(char **pParam, uint8_t parCnt);
     static void EchoCB(char **pParam, uint8_t parCnt);
+//    uint8_t Cat_int(char* pParam);
     static void CatCB(char** pParam, uint8_t parCnt);
     static void watchCB(char** pParam, uint8_t parCnt);
     static void watchcsvCB(char** pParam, uint8_t parCnt);
@@ -101,7 +102,6 @@ private:
     int8_t GetParamIdx(char* pParam, bool partStr = false, int8_t startIdx = 0);
     int8_t GetCmdIdx(char* pCmd, int8_t startIdx = 0);
     uint8_t Cat_int(char* pParam);
-    void ListDirHlp(bool dir, bool rw = true, int len=4096);
     uint8_t ParCmp(uint8_t idx1, uint8_t idx2, bool cmd=false);
     void HandleTab();
     void HistoryUp();

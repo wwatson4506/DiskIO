@@ -2,8 +2,8 @@
   microBox.cpp - Library for Linux-Shell like interface for Arduino.
   Created by Sebastian Duell, 06.02.2015.
   More info under http://sebastian-duell.de
-  Heavily modified for Porting to Teensy T3.6, T4.0, T4.2, MicroMod?
   Released under GPLv3.
+  Heavily modified for Porting to Teensy T3.6, T4.0, T4.2, MicroMod?
 */
 
 #include <diskIOMB.h>
@@ -13,9 +13,7 @@
 #include "diskIO.h"
 
 diskIO dioMB;  // One instance of diskIO.
-
 microBox microbox;
-const prog_char fileDate[] PROGMEM = __DATE__;
 
 CMD_ENTRY microBox::Cmds[] =
 {
@@ -113,7 +111,7 @@ void microBox::ShowPrompt()
     Serial.print(F("root@"));
     Serial.print(machName);
     Serial.print(F(":"));
-    Serial.print(dioMB.drvIdx[dioMB.getCDN()].fullPath);
+    Serial.print(dioMB.cwd());
     Serial.print(F(">"));
 }
 
@@ -197,7 +195,7 @@ void microBox::cmdParser()
         else
         {
             if(isTimeout(&watchTimeout, 500))
-//                Cat_int(cmdBuf);
+                Cat_int(cmdBuf);
 
             return;
         }
@@ -654,30 +652,6 @@ char *microBox::GetFile(char *pParam)
     return file;
 }
 
-void microBox::ListDirHlp(bool dir, bool rw, int len)
-{
-    cmdBuf[1] = 'r';
-    cmdBuf[3] = 0;
-    if(dir)
-        cmdBuf[0] = 'd';
-    else
-        cmdBuf[0] = '-';
-
-    if(rw)
-        cmdBuf[2] = 'w';
-    else
-        cmdBuf[2] = '-';
-
-    Serial.print(cmdBuf);
-    cmdBuf[0] = 0;
-
-    Serial.print(F("xr-xr-x\t2 root\troot\t"));
-    Serial.print(len);
-    Serial.print(F(" "));
-    Serial.print((const __FlashStringHelper*)fileDate);
-    Serial.print(F(" "));
-}
-
 void microBox::ListDrives(char **pParam, uint8_t parCnt)
 {
 	dioMB.listAvailableDrives(&Serial);
@@ -695,7 +669,7 @@ void microBox::ListDir(char **pParam, uint8_t parCnt, bool listLong)
 			return;
 		}
 	} else {
-		if(!dioMB.lsDir(dioMB.drvIdx[dioMB.getCDN()].fullPath)) {
+		if(!dioMB.lsDir("")) {
 			ErrorDir(F("ls"));
 			return;
 		}
@@ -748,7 +722,7 @@ int8_t microBox::GetParamIdx(char* pParam, bool partStr, int8_t startIdx)
     {
         dir = GetDir(pParam, true);
         if(dir == NULL)
-            dir = dioMB.drvIdx[dioMB.getCDN()].fullPath;
+            dir = dioMB.cwd();
         if(dir != NULL)
         {
 Serial.printf("dir = %s\r\n", dir);
@@ -875,7 +849,6 @@ void microBox::Echo(char **pParam, uint8_t parCnt)
     }
 }
 
-
 void microBox::Cat(char** pParam, uint8_t parCnt)
 {
 	char buff[256]; // Disk IO buffer.
@@ -889,7 +862,6 @@ void microBox::Cat(char** pParam, uint8_t parCnt)
 		ErrorDir(F("cat"));
 		return;
 	}	
-// This needs to process a drive spec and relative path spec!!!!!!!!!!!!!!
 	strcpy(tempPath, pParam[0]);
 	if(dioMB.exists(tempPath)) {
 		if(!dioMB.open(&mscfl, (const char *)tempPath, O_RDONLY)) {
@@ -902,10 +874,10 @@ void microBox::Cat(char** pParam, uint8_t parCnt)
 				return; // Error
 			Serial.printf("%s",buff);
 		}
-			if(br < 0) {
-				ErrorDir(F("cat"));
-				return;
-			}
+		if(br < 0) {
+			ErrorDir(F("cat"));
+			return;
+		}
 		if(!dioMB.close(&mscfl)) {
 			ErrorDir(F("cat"));
 			return;
@@ -918,7 +890,7 @@ void microBox::Cat(char** pParam, uint8_t parCnt)
 
 uint8_t microBox::Cat_int(char* pParam)
 {
-	return 0;
+    return 0;
 }
 
 void microBox::watch(char** pParam, uint8_t parCnt)
@@ -927,7 +899,7 @@ void microBox::watch(char** pParam, uint8_t parCnt)
     {
         if(strncmp_P(pParam[0], PSTR("cat"), 3) == 0)
         {
-//            if(Cat_int(pParam[1]))
+//            if(Cat(pParam[1]))
             {
                 strcpy(cmdBuf, pParam[1]);
                 watchMode = true;
