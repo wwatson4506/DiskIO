@@ -611,7 +611,6 @@ bool diskIO::lsDir(char *dirPath) {
 		currDrv = (uint8_t)newDrv;	// Set new logical drive index.
 		mp[newDrv].chvol(); // Change to the new logical drive.
 	}
-//mp[newDrv].chvol(); // Change to the new logical drive.
 
 	// Get current path spec and add '/' + given path spec to it.
 	if(strlen(path) != 1)
