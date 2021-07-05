@@ -319,11 +319,12 @@ void diskIO::listAvailableDrives(print_t* p) {
 // Find a device and return the logical drive index number for that device and
 // the path spec with volume label stripped off of the path spec.
 // param in:  full path.
-// param out: device index number. Path name stripped of volume label.
+// param out: device index number or (-1 not found). 'path' name stripped of
+// volume label. Processes both '/volume name/' and 'n:' drive specs.
 // ----------------------------------------------------------------------------
-int diskIO::getLogicalDeviceNumber(char *path) {
+int diskIO::getLogicalDriveNumber(char *path) {
 #ifdef TalkToMe
-  Serial.printf("getLogicalDeviceNumber(%s)\r\n", path);
+  Serial.printf("getLogicalDriveNumber(%s)\r\n", path);
 #endif
 	char str1[256];
 	char *tempPath;
@@ -336,9 +337,10 @@ int diskIO::getLogicalDeviceNumber(char *path) {
 
 	strcpy(str1,path);  // Isolate pointer to path from changes below.
 	tempPath = str1;
-//	if (!tempPath) return -1;	// Invalid path name?
+
 	// If no drive or path spec, return current default logical drive number.
 	if(tempPath[0] == '\0') {
+
 	// Check default logical drive is still connected if no drive spec provided.
 	if((volNum2drvNum[currDrv] < CNT_MSDRIVES) && (!isConnected(volNum2drvNum[currDrv]))) {
 		mscError = DEVICE_NOT_CONNECTED; //Failed, You must have unplugged it!!
@@ -346,6 +348,7 @@ int diskIO::getLogicalDeviceNumber(char *path) {
 	}
 		 return currDrv; // If no drive or path spec, return current 
 	}
+
 	// Check if using logical device number ("0:" etc...).
 	sprintf(ldNumber,"%s",path); 
 	// Look for a colon in the path spec. Terminate on end of string
@@ -357,24 +360,26 @@ int diskIO::getLogicalDeviceNumber(char *path) {
 	if (tempChar == ':') {	// Is this a volume number?
 		cntDigits--;		// Backup to ':' position.
 		i = atoi(ldNumber); // numeric value of number string.
-		if (i < CNT_PARITIONS) {	// Don't overrun array.
-			volume = i;		// Drive number
+		if (i < CNT_PARITIONS) {	// Don't overrun device descriptor array.
+			volume = i;		// Found valid volume. Return index number.
 			ldNumber[cntDigits] = '/';  // Change ':' to '/'.
-			sprintf(path, "%s", ldNumber+cntDigits);	// Snip off the drive number.
+			sprintf(path, "%s", ldNumber+cntDigits);	// Strip off the drive number.
+			// Make sure device is still connected (USB only at this time).
 			if((volNum2drvNum[volume] < CNT_MSDRIVES) && (!isConnected(volNum2drvNum[volume]))) {
-				mscError = DEVICE_NOT_CONNECTED;
-				return -1;
+				mscError = DEVICE_NOT_CONNECTED; // Error number 253.
+				return -1; // Indicate failure. Device not connected.
 			} else if(!drvIdx[volume].valid) {
-				mscError = LDRIVE_NOT_FOUND;
-				return -1;
+				mscError = LDRIVE_NOT_FOUND; // Error number 252.
+				return -1; // Indicate failure. Logical drive not found.
 			}
-			return volume;
+			return volume; // Return Logical drive number.
 		}
 	}
+
     // Look for logical device name (/volume name/).
-	if (*tempPath == '/') { // Look for first '/'
+	if (*tempPath == '/') { // Find first '/'
 		do {
-			strPtr = drvIdx[i].name;	// Volume label.
+			strPtr = drvIdx[i].name;	// Volume label without '/../'.
 			tempPath = str1;			// Path to search.
 			// Compare the volume label with path name.
 			do {
@@ -383,29 +388,31 @@ int diskIO::getLogicalDeviceNumber(char *path) {
 				if (ifLower(pathChar)) pathChar -= 0x20; // Make upper case.
 				if (ifLower(tempChar)) tempChar -= 0x20; // Ditto.
 			} while (pathChar && (char)pathChar == tempChar);
-		  // Repeat for each label until there is a pattern match.
+		  // check each label until there is a match.
 		} while ((pathChar || (tempChar != '/')) && ++i < CNT_PARITIONS);
 		// If a volume label is found, get the drive number and strip label from path.
-		if (i < CNT_PARITIONS) {
-			volume = i;		// Volume number.
+		if (i < CNT_PARITIONS) {	// Don't overrun device descriptor array.
+			volume = i;		// Found valid volume. Return index number.
 			strcpy(path, tempPath); // Strip off the logical drive name (leave last '/').
+			// Make sure device is still connected (USB only at this time).
 			if((volNum2drvNum[volume] < CNT_MSDRIVES) && (!isConnected(volNum2drvNum[volume]))) {
-				mscError = DEVICE_NOT_CONNECTED;
-				return -1;
+				mscError = DEVICE_NOT_CONNECTED; // Error number 253.
+				return -1; // Indicate failure. Device not connected.
 			} else if(!drvIdx[volume].valid) {
-				mscError = LDRIVE_NOT_FOUND;
-				return -1;
+				mscError = LDRIVE_NOT_FOUND; // Error number 252.
+				return -1; // Indicate failure. Logical drive not found.
 			}
-			return volume;
+			return volume; // Return Logical drive number.
 		}
 	} 
 	return currDrv;	// Return default logical drive. (No Drive spec given) 
 }
+
 // Check for a valid drive spec (/volume name/).
 // Return possible path spec stripped of drive spec.
 int diskIO::isDriveSpec(char *driveSpec) {
 	const char *ds = driveSpec;
-	int  rslt = getLogicalDeviceNumber(driveSpec);
+	int  rslt = getLogicalDriveNumber(driveSpec);
 	if((rslt < 0) && (mscError != DISKIO_PASS)) { // Returned -1, Missing or invalid drive spec. 
 		return rslt;
 	}
@@ -436,20 +443,52 @@ int diskIO::changeDrive(char *driveSpec) {
 	return rslt;
 }
 
-// Get current working drive number.
+// Checks for a drive spec (/volume name/ or n:) and changes to volume.
+// Also checks that drive is still connected and if connected then adds the
+// given path to the current path for that logical drive. Finally it parses
+// the path spec processing any relative path specs to absolute path specs.
+bool diskIO::processPathSpec(char *path) {
+	int ldNum = 0;
+	char tempPath[256];
+
+	// Check for a drive spec. 
+	// Return -1 if failed or logical drive number.
+	ldNum = isDriveSpec(path);
+	if((ldNum < 0) && (mscError != DISKIO_PASS)) {
+		return false;
+	} else if((currDrv != ldNum) && (mscError == DISKIO_PASS)) {
+		currDrv = (uint8_t)ldNum;	// Set new logical drive index.
+		mp[ldNum].chvol(); // Change to the new logical drive.
+	}
+
+	// Get current path spec and add '/' + given path spec to it.
+	if(strlen(path) != 1)
+		sprintf(tempPath, "%s/%s", drvIdx[currDrv].currentPath, path);
+	else
+		strcpy(tempPath,path);
+
+	// Check for '.', '..', '../'.
+	if(!parsePathSpec(tempPath)) {
+		mscError = INVALID_PATH_NAME;
+		return false;	// Invalid path name.
+	}
+	strcpy(path, tempPath);
+	return true;
+}
+
+// Get current working logical drive number.
 uint8_t diskIO::getCDN(void) {
 	return currDrv;
 }
 
 // Get current working directory (with logical drive name).
 char *diskIO::cwd(void) {
-//	tempPath[256];
 	sprintf(drvIdx[currDrv].fullPath,"/%s%s",drvIdx[currDrv].name, drvIdx[currDrv].currentPath);
 	return drvIdx[currDrv].fullPath;
 }
 
 //------------------------------------------------------------
-// Make an absolute path string from a relative pathe string.
+// Make an absolute path string from a relative path string.
 // Process ".", ".." and "../".
 //------------------------------------------------------------
 bool diskIO::relPathToAbsPath(const char *path_in, char * path_out, int outLen)
@@ -518,9 +557,9 @@ bool diskIO::relPathToAbsPath(const char *path_in, char * path_out, int outLen)
 //Written by Jack Handy - jakkhandy@hotmail.com
 //http://www.codeproject.com/KB/string/wildcmp.aspx
 // -------------------------------------------------------------------
-// Based on 'wildcmp()' (original) and highly modified for use with
+// Based on 'wildcmp()' (original) and modified for use with
 // Teensy by Warren Watson.
-// Found in SparkFun's OpenLog library.
+// Found and taken from SparkFun's OpenLog library.
 // -------------------------------------------------------------------
 // Check for filename match to wildcard pattern.
 bool diskIO::wildcardMatch(const char *pattern, const char *filename) {
@@ -581,48 +620,30 @@ bool diskIO::getWildCard(char *specs, char *pattern)
 		return false;
 }
 
-//-----------------------------
+//------------------------------------------------------------------------------
 // Directory Listing functions.
-//-----------------------------
-// List a directory from given path. Can include a volume name delimeted with
+//------------------------------------------------------------------------------
+
+// List a directory from given path. Can include a volume name delimited with '/'
 // '/name/' at the begining of path string.
 bool diskIO::lsDir(char *dirPath) {
 #ifdef TalkToMe
   Serial.printf("lsDir %s...\r\n", dirPath);
 #endif
 	PFsFile dir;
+	char savePath[256];
+	savePath[0] = 0;
 	char pattern[256];
-	char path[256];
-	char tempPath[256];
-	bool wildcards = false;
-	int newDrv = 0;
-	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
-
-	path[0] = 0;
 	pattern[0] = 0;
+	 
+	bool wildcards = false;
+	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
+    
+    // Preserve original path spec. Should only change if chdir() is used.	
+	strcpy(savePath,dirPath);
 	
-	strcpy(path,dirPath); // Isolate original path pointer from changes below.
-
-	// Check for a drive spec (/volume name/).
-	newDrv = isDriveSpec(path);
-	if((newDrv < 0) && (mscError != DISKIO_PASS)) {
-		return false; // Returns drive index else -1.
-	} else if((currDrv != newDrv) && (mscError == DISKIO_PASS)) {
-		currDrv = (uint8_t)newDrv;	// Set new logical drive index.
-		mp[newDrv].chvol(); // Change to the new logical drive.
-	}
-
-	// Get current path spec and add '/' + given path spec to it.
-	if(strlen(path) != 1)
-		sprintf(tempPath, "%s/%s", drvIdx[currDrv].currentPath, path);
-	else
-		strcpy(tempPath,path);
-
-	// Check for '.', '..', '../'.
-	if(!parsePathSpec(tempPath)) {
-		mscError = INVALID_PATH_NAME;
-		return false;	// Invalid path name.
-	}
+	// Process path spec.  Return false if failed (-1).
+	if(!processPathSpec(savePath)) return false;
 
 	// Show current logical drive name.
 	Serial.printf(F("Volume Label: %s\r\n"), drvIdx[currDrv].name);
@@ -630,10 +651,10 @@ bool diskIO::lsDir(char *dirPath) {
 	Serial.printf(F("Full Path: %s\r\n"), cwd());
 
 	// wildcards = true if any wildcards used else false.
-	wildcards = getWildCard((char *)tempPath,pattern);  
+	wildcards = getWildCard((char *)savePath,pattern);  
 
 	// Try to open the directory.
-	if(!dir.open(tempPath)) {
+	if(!dir.open(savePath)) {
 		mscError = INVALID_PATH_NAME;
 		return false;  // Invalid path name.
 	}
@@ -753,38 +774,60 @@ bool diskIO::chdir(char *dirPath) {
 // Create directory from path spec.
 // Will fail if directory exsits or is an invald path spec.
 //---------------------------------------------------------------------------
-bool diskIO::mkdir(const char *path) {
-	int newDrv = 0;
+bool diskIO::mkdir(char *path) {
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 
-	char tempPath[256];
-	strcpy(tempPath,path); // Isolate original path pointer from changes below.
+	char savePath[256];
+	savePath[0] = 0;
 
-	// Check for a drive spec (/volume name/).
-	if((newDrv = isDriveSpec(tempPath)) >= 0) { // Returns drive index else -1.
-		currDrv = (uint8_t)newDrv;	// Set new logical drive index.
-		mp[newDrv].chvol(); // Change to the new logical drive.
-	} else {
-		mscError = LDRIVE_NOT_FOUND;
-		return false; // Invalid logical drive.
-	}
+    // Preserve original path spec. Should only change if chdir() is used.	
+	strcpy(savePath,path);
 
-	// Check for ".", ".." and "../"
-	if(!parsePathSpec(tempPath)) {
-		mscError = INVALID_PATH_NAME;
-		return false; // Invalid path spec.
-	}
-	if(mp[currDrv].exists(tempPath)) {
+	// Process path spec.  Return false if failed (-1).
+	if(!processPathSpec(savePath)) return false;
+
+	if(mp[currDrv].exists(savePath)) {
 		mscError = PATH_EXISTS;
 		return false;
 	}
-	if(mp[currDrv].mkdir(tempPath)) {
+	if(mp[currDrv].mkdir(savePath)) {
 		if(currDrv != drive) {
 			mp[drive].chvol();  // Change back to original logical drive. If changed.
 			currDrv = drive;    // Ditto with the drive index.
 		}
 		return true;
 	}
+	mscError = MKDIR_ERROR;
+	return false;
+}
+
+//---------------------------------------------------------------------------
+// Remove a file from path spec.
+// Will fail if file does not exsit or is an invald path spec.
+//---------------------------------------------------------------------------
+bool diskIO::rm(char *dirPath) {
+	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
+	char savePath[256];
+	savePath[0] = 0;
+
+    // Preserve original path spec. Should only change if chdir() is used.	
+	strcpy(savePath,dirPath);
+
+	// Process path spec.  Return false if failed (-1).
+	if(!processPathSpec(savePath)) return false;
+
+	if(!mp[currDrv].exists(savePath)) {
+		mscError = PATH_NOT_EXIST;
+		return false;
+	}
+	if(mp[currDrv].remove(savePath)) {
+		if(currDrv != drive) {
+			mp[drive].chvol();  // Change back to original logical drive. If changed.
+			currDrv = drive;    // Ditto with the drive index.
+		}
+		return true;
+	}
+	mscError = RM_ERROR;
 	return false;
 }
 
@@ -792,74 +835,49 @@ bool diskIO::mkdir(const char *path) {
 // Remove directory from path spec.
 // Will fail if directory does not exsit or is an invald path spec.
 //---------------------------------------------------------------------------
-bool diskIO::rmdir(const char *path) {
-	int newDrv = 0;
+bool diskIO::rmdir(char *dirPath) {
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
+	char savePath[256];
+	savePath[0] = 0;
 
-	char tempPath[256];
-	strcpy(tempPath,path); // Isolate original path pointer from changes below.
-	
-	// Check for a drive spec (/volume name/).
-	if((newDrv = isDriveSpec(tempPath)) >= 0) { // Returns drive index else -1.
-		currDrv = (uint8_t)newDrv;	// Set new logical drive index.
-		mp[newDrv].chvol(); // Change to the new logical drive.
-	} else {
-		mscError = LDRIVE_NOT_FOUND;
-		return false; // Invalid logical drive.
-	}
+    // Preserve original path spec. Should only change if chdir() is used.	
+	strcpy(savePath,dirPath);
 
-	// Check for ".", ".." and "../"
-	if(!parsePathSpec(tempPath)) {
-		mscError = INVALID_PATH_NAME;
-		return false; // Invalid path spec.
-	}
-	if(!mp[currDrv].exists(tempPath)) {
+	// Process path spec.  Return false if failed (-1).
+	if(!processPathSpec(savePath)) return false;
+
+	if(!mp[currDrv].exists(savePath)) {
 		mscError = PATH_NOT_EXIST;
 		return false;
 	}
-	if(mp[currDrv].rmdir(tempPath)) {
+	if(mp[currDrv].rmdir(savePath)) {
 		if(currDrv != drive) {
 			mp[drive].chvol();  // Change back to original logical drive. If changed.
 			currDrv = drive;    // Ditto with the drive index.
 		}
 		return true;
 	}
+	mscError = RMDIR_ERROR;
 	return false;
 }
 
 //---------------------------------------------------------------------------
-// Test forr exsistance of file or directory.
+// Test for exsistance of file or directory.
 // Will fail if directory/file does not exsit or is an invald path spec.
 //---------------------------------------------------------------------------
 bool diskIO::exists(char *dirPath) {
-	int newDrv = 0;
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 	bool rslt = false;
-	char tempPath[256];
-	char path[256];
+	char savePath[256];
+	savePath[0] = 0;
 
-	strcpy(path,dirPath); // Isolate original path pointer from changes below.
-	
-	// Check for a drive spec (/volume name/).
-	if((newDrv = isDriveSpec(path)) >= 0) { // Returns drive index else -1.
-		currDrv = (uint8_t)newDrv;	// Set new logical drive index.
-		mp[newDrv].chvol(); // Change to the new logical drive.
-	} else {
-		mscError = LDRIVE_NOT_FOUND;
-		return false; // Invalid logical drive.
-	}
-	// Get current path spec and add '/' + given path spec to it.
-	if(strlen(path) != 1)
-		sprintf(tempPath, "%s/%s", drvIdx[currDrv].currentPath, path);
-	else
-		strcpy(tempPath,path);
+    // Preserve original path spec. Should only change if chdir() is used.	
+	strcpy(savePath,dirPath);
 
-	// Check for ".", ".." and "../"
-	if(!parsePathSpec(tempPath)) {
-		mscError = INVALID_PATH_NAME;
-		return false; // Invalid path spec.
-	}
-	rslt = mp[currDrv].exists(tempPath);
+	// Process path spec.  Return false if failed (-1).
+	if(!processPathSpec(savePath)) return false;
+
+	rslt = mp[currDrv].exists(savePath);
 	if(!rslt) mscError = PATH_NOT_EXIST;
 	mp[drive].chvol();  // Change back to original logical drive. If changed.
 	currDrv = drive;    // Ditto with the drive index.
@@ -871,52 +889,28 @@ bool diskIO::exists(char *dirPath) {
 // Test for exsistance of file or directory.
 // Will fail if directory/file does not exsit or is an invald path spec.
 //---------------------------------------------------------------------------
-bool diskIO::rename(const char *oldpath, const char *newpath) {
+bool diskIO::rename(char *oldpath, const char *newpath) {
 #ifdef TalkToMe
 	Serial.printf(F("rename()\r\n"));
 #endif
-
-	int newDrv = 0;
+	char savePath[256];
+	savePath[0] = 0;
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 
-	char tempPathOld[256];
-	strcpy(tempPathOld,oldpath); // Isolate original path pointer from changes below.
-	// Check for a drive spec (/volume name/).
-	if((newDrv = isDriveSpec(tempPathOld)) >= 0) { // Returns drive index else -1.
-		currDrv = (uint8_t)newDrv;	// Set new logical drive index.
-		mp[newDrv].chvol(); // Change to the new logical drive.
-	} else {
-		mscError = LDRIVE_NOT_FOUND;
-		return false; // Invalid logical drive.
-	}
+    // Preserve original path spec. Should only change if chdir() is used.	
+	strcpy(savePath,oldpath);
 
-	char tempPathNew[256];
-	// Check for a drive spec (/volume name/).
-	if((newDrv = isDriveSpec(tempPathNew)) >= 0) { // Returns drive index else -1.
-		currDrv = (uint8_t)newDrv;	// Set new logical drive index.
-		mp[newDrv].chvol(); // Change to the new logical drive.
-	} else {
-		mscError = LDRIVE_NOT_FOUND;
-		return false; // Invalid logical drive.
-	}
+	// Process path spec.  Return false if failed (-1).
+	if(!processPathSpec(savePath)) return false;
 
-	// Check for ".", ".." and "../"
-	if(!parsePathSpec(tempPathOld)) {
-		mscError = INVALID_PATH_NAME;
-		return false; // Invalid path spec.
-	}
-	// Check for ".", ".." and "../"
-	if(!parsePathSpec(tempPathNew)) { // This one may be silly...
-		mscError = INVALID_PATH_NAME;
-		return false; // Invalid path spec.
-	}
-	if(mp[currDrv].rename(tempPathOld, tempPathNew)) {
+	if(mp[currDrv].rename(savePath, newpath)) {
 		if(currDrv != drive) {
 			mp[drive].chvol();  // Change back to original logical drive. If changed.
 			currDrv = drive;    // Ditto with the drive index.
 		}
 		return true;
 	}
+	mscError = RENAME_ERROR;
 	return false;
 }
 
@@ -924,53 +918,36 @@ bool diskIO::rename(const char *oldpath, const char *newpath) {
 // Open file or directory.
 //---------------------------------------------------------------------------
 bool diskIO::open(void *fp, char* dirPath, oflag_t oflag) {
-	int newDrv = 0;
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
-
-	char tempPath[256];
-	char path[256];
 
 	// Setup two types. One for MSC and one for SDIO/SPISD. 
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
 
-	strcpy(path,dirPath); // Isolate original path pointer from changes below.
+    // Preserve original path spec. Should only change if chdir() is used.	
+	char savePath[256];
+	savePath[0] = 0;
+	strcpy(savePath,dirPath);
 
-	// Check for a drive spec (/volume name/).
-	if((newDrv = isDriveSpec(path)) >= 0) { // Returns drive index else -1.
-		currDrv = (uint8_t)newDrv;	// Set new logical drive index.
-		mp[newDrv].chvol(); // Change to the new logical drive.
-	} else {
-		mscError = LDRIVE_NOT_FOUND;
-		return false; // Invalid logical drive.
-	}
-	// Get current path spec and add '/' + given path spec to it.
-	if(strlen(path) != 1)
-		sprintf(tempPath, "%s/%s", drvIdx[currDrv].currentPath, path);
-	else
-		strcpy(tempPath,path);
+	// Process path spec.  Return false if failed (-1).
+	if(!processPathSpec(savePath)) return false;
 	
-	// Check for ".", ".." and "../"
-	if(!parsePathSpec(tempPath)) {
-		mscError = INVALID_PATH_NAME;
-		return false; // Invalid path spec.
-	}
-	uint8_t iface = drvIdx[currDrv].ifaceType;
-	switch(iface) {
+	// Use the proper file system for the device type. ie: MSC or SD/SDIO.
+	switch(drvIdx[currDrv].ifaceType) {
 		case USB_TYPE:
-			if(!mscFtype->open(&mp[currDrv], tempPath, oflag)) {
+			if(!mscFtype->open(&mp[currDrv], savePath, oflag)) {
 				mscError = OPEN_FAILED_USB;
 				return false;
 			}
 			break;
 		case SDIO_TYPE:
-		if(!sdFtype->open(reinterpret_cast < FsVolume * > (&mp[currDrv]), tempPath, oflag)) {
+		if(!sdFtype->open(reinterpret_cast < FsVolume * > (&mp[currDrv]), savePath, oflag)) {
 				mscError = OPEN_FAILED_SDIO;
 				return false;
 			}
 			break;
 		case SPI_TYPE:
-			if(!sdFtype->open(reinterpret_cast < FsVolume * > (&mp[currDrv]), tempPath, oflag)) {
+			if(!sdFtype->open(reinterpret_cast < FsVolume * > (&mp[currDrv]), savePath, oflag)) {
 				mscError = OPEN_FAILED_SPI;
 				return false;
 			}
@@ -993,9 +970,8 @@ bool diskIO::close(void *fp) {
 
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp ); 
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
-	uint8_t iface = drvIdx[currDrv].ifaceType;
 
-	switch(iface) {
+	switch(drvIdx[currDrv].ifaceType) {
 		case USB_TYPE:
 			if(!mscFtype->close()) {
 				mscError = CLOSE_FAILED_USB;
@@ -1022,10 +998,9 @@ int diskIO::read(void *fp, char *buf, size_t count) {
 
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
-	uint8_t iface = drvIdx[currDrv].ifaceType;
 	int br = 0;
 	
-	switch(iface) {
+	switch(drvIdx[currDrv].ifaceType) {
 		case USB_TYPE:
 			br = mscFtype->read(buf, count);
 			if(br <= 0) {
@@ -1055,10 +1030,9 @@ size_t diskIO::write(void *fp, char *buf, size_t count) {
 
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
-	uint8_t iface = drvIdx[currDrv].ifaceType;
 	int bw = 0;
 	
-	switch(iface) {
+	switch(drvIdx[currDrv].ifaceType) {
 		case USB_TYPE:
 			bw = mscFtype->write(buf, count);
 			if(bw != (int)count) {
@@ -1088,9 +1062,8 @@ off_t diskIO::lseek(void *fp, off_t offset, int whence) {
 
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
-	uint8_t iface = drvIdx[currDrv].ifaceType;
 	
-	switch(iface) {
+	switch(drvIdx[currDrv].ifaceType) {
 		case USB_TYPE:
 			switch (whence) {
 				case SEEK_SET:
@@ -1156,9 +1129,8 @@ off_t diskIO::lseek(void *fp, off_t offset, int whence) {
 void diskIO::fflush(void *fp) {
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
-	uint8_t iface = drvIdx[currDrv].ifaceType;
 
-	switch(iface) {
+	switch(drvIdx[currDrv].ifaceType) {
 		case USB_TYPE:
 			mscFtype->flush();
 			break;
@@ -1177,9 +1149,8 @@ void diskIO::fflush(void *fp) {
 int64_t diskIO::ftell(void *fp) {
 	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
 	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
-	uint8_t iface = drvIdx[currDrv].ifaceType;
 	uint64_t filePos = 0;
-	switch(iface) {
+	switch(drvIdx[currDrv].ifaceType) {
 		case USB_TYPE:
 			filePos = mscFtype->curPosition();
 			break;

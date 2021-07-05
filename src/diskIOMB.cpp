@@ -27,6 +27,9 @@ CMD_ENTRY microBox::Cmds[] =
     {"watch", microBox::watchCB},
     {"watchcsv", microBox::watchcsvCB},
     {"clear", microBox::clearCB},
+    {"mkdir", microBox::mkdirCB},
+    {"rmdir", microBox::rmdirCB},
+    {"rm", microBox::rmCB},
     {NULL, NULL}
 };
 
@@ -669,7 +672,7 @@ void microBox::ListDir(char **pParam, uint8_t parCnt, bool listLong)
 			return;
 		}
 	} else {
-		if(!dioMB.lsDir("")) {
+		if(!dioMB.lsDir((char *)"")) {
 			ErrorDir(F("ls"));
 			return;
 		}
@@ -864,7 +867,7 @@ void microBox::Cat(char** pParam, uint8_t parCnt)
 	}	
 	strcpy(tempPath, pParam[0]);
 	if(dioMB.exists(tempPath)) {
-		if(!dioMB.open(&mscfl, (const char *)tempPath, O_RDONLY)) {
+		if(!dioMB.open(&mscfl, (char *)tempPath, O_RDONLY)) {
 			ErrorDir(F("cat"));
 			return;
 		}
@@ -944,6 +947,51 @@ void microBox::clear(char** pParam, uint8_t parCnt)
 	Serial.printf("%c",12);
 }
 
+void microBox::mkdir(char** pParam, uint8_t parCnt)
+{
+	char tempPath[256];
+
+	if(pParam[0] == NULL) {
+		ErrorDir(F("mkdir"));
+		return;
+	}	
+	strcpy(tempPath, pParam[0]);
+	if(!dioMB.mkdir(tempPath)) {
+			ErrorDir(F("mkdir"));
+			return;
+		}
+}
+
+void microBox::rmdir(char** pParam, uint8_t parCnt)
+{
+	char tempPath[256];
+
+	if(pParam[0] == NULL) {
+		ErrorDir(F("rmdir"));
+		return;
+	}	
+	strcpy(tempPath, pParam[0]);
+	if(!dioMB.rmdir(tempPath)) {
+			ErrorDir(F("rmdir"));
+			return;
+		}
+}
+
+void microBox::rm(char** pParam, uint8_t parCnt)
+{
+	char tempPath[256];
+
+	if(pParam[0] == NULL) {
+		ErrorDir(F("rm"));
+		return;
+	}	
+	strcpy(tempPath, pParam[0]);
+	if(!dioMB.rm(tempPath)) {
+			ErrorDir(F("rm"));
+			return;
+		}
+}
+
 void microBox::ListDirCB(char **pParam, uint8_t parCnt)
 {
     microbox.ListDir(pParam, parCnt);
@@ -992,5 +1040,20 @@ void microBox::SaveParCB(char **pParam, uint8_t parCnt)
 void microBox::clearCB(char** pParam, uint8_t parCnt)
 {
     microbox.clear(pParam, parCnt);
+}
+
+void microBox::mkdirCB(char** pParam, uint8_t parCnt)
+{
+    microbox.mkdir(pParam, parCnt);
+}
+
+void microBox::rmdirCB(char** pParam, uint8_t parCnt)
+{
+    microbox.rmdir(pParam, parCnt);
+}
+
+void microBox::rmCB(char** pParam, uint8_t parCnt)
+{
+    microbox.rm(pParam, parCnt);
 }
 

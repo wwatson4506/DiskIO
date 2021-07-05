@@ -45,6 +45,10 @@
 #define WRITE_ERROR_USB		13
 #define WRITE_ERROR_SD		14
 #define FTELL_ERROR			15
+#define RENAME_ERROR		16
+#define MKDIR_ERROR			17
+#define RMDIR_ERROR			18
+#define RM_ERROR			19
 #define LDRIVE_NOT_FOUND	252	
 #define DEVICE_NOT_CONNECTED 253;
 
@@ -77,14 +81,15 @@ public:
 	uint8_t error(void);
 	bool init();
 	void checkDrivesConnected(void);
-	int  getLogicalDeviceNumber(char *path);	
+	int  getLogicalDriveNumber(char *path);	
 	int  isDriveSpec(char *driveSpec);
 	int  changeDrive(char *driveSpec);
 	bool chdir(char *dirPath);
-	bool mkdir(const char *path);
-	bool rmdir(const char *path);
+	bool mkdir(char *path);
+	bool rmdir(char *dirPath);
+	bool rm(char *dirPath);
 	bool exists(char *dirPath);
-	bool rename(const char *oldpath, const char *newpath);
+	bool rename(char *oldpath, const char *newpath);
 	bool open(void *fp, char* dirPath, oflag_t oflag = O_RDONLY);
 	bool close(void *fp);
 	int  read(void *fp, char *buf, size_t count);
@@ -96,6 +101,7 @@ public:
 	void processMSDrive(uint8_t drive_number, msController &msDrive, UsbFs &msc);
 	void processSDDrive(uint8_t drive_number);
 	void ProcessSPISD(uint8_t drive_number);
+	bool processPathSpec(char *path);
 	bool isConnected(uint8_t deviceNumber);
 	uint8_t getVolumeCount(void);
 	void listAvailableDrives(print_t* p);
