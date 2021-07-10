@@ -85,6 +85,8 @@ private:
     static void rmdirCB(char** pParam, uint8_t parCnt);
     static void mkdirCB(char** pParam, uint8_t parCnt);
     static void rmCB(char** pParam, uint8_t parCnt);
+    static void renameCB(char** pParam, uint8_t parCnt);
+    static void cpCB(char** pParam, uint8_t parCnt);
 	
 	void ListDrives(char **pParam, uint8_t parCnt);
     void ListDir(char **pParam, uint8_t parCnt, bool listLong=false);
@@ -97,6 +99,8 @@ private:
     void rmdir(char** pParam, uint8_t parCnt);
     void mkdir(char** pParam, uint8_t parCnt);
     void rm(char** pParam, uint8_t parCnt);
+    void rename(char** pParam, uint8_t parCnt);
+    void cp(char** pParam, uint8_t parCnt);
 
 private:
     void ShowPrompt();

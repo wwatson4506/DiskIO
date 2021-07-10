@@ -33,22 +33,16 @@
 #define INVALID_PATH_NAME	1
 #define PATH_EXISTS			2
 #define PATH_NOT_EXIST		3
-#define OPEN_FAILED_USB		4
-#define OPEN_FAILED_SDIO	5
-#define OPEN_FAILED_SPI		6
-#define CLOSE_FAILED_USB	7
-#define CLOSE_FAILED_SD		8
-#define SEEK_ERROR_USB		9
-#define SEEK_ERROR_SD		10
-#define READ_ERROR_USB		11
-#define READ_ERROR_SD		12
-#define WRITE_ERROR_USB		13
-#define WRITE_ERROR_SD		14
-#define FTELL_ERROR			15
-#define RENAME_ERROR		16
-#define MKDIR_ERROR			17
-#define RMDIR_ERROR			18
-#define RM_ERROR			19
+#define OPEN_FAILED			4
+#define CLOSE_FAILED		5
+#define SEEK_ERROR			6
+#define READ_ERROR			7
+#define WRITE_ERROR			8
+#define FTELL_ERROR			9
+#define RENAME_ERROR		10
+#define MKDIR_ERROR			11
+#define RMDIR_ERROR			12
+#define RM_ERROR			13
 #define LDRIVE_NOT_FOUND	252	
 #define DEVICE_NOT_CONNECTED 253;
 
@@ -89,11 +83,11 @@ public:
 	bool rmdir(char *dirPath);
 	bool rm(char *dirPath);
 	bool exists(char *dirPath);
-	bool rename(char *oldpath, const char *newpath);
+	bool rename(char *oldpath, char *newpath);
 	bool open(void *fp, char* dirPath, oflag_t oflag = O_RDONLY);
 	bool close(void *fp);
-	int  read(void *fp, char *buf, size_t count);
-	size_t  write(void *fp, char *buf, size_t count);
+	int  read(void *fp, void *buf, size_t count);
+	size_t  write(void *fp, void *buf, size_t count);
 	off_t  lseek(void *fp, off_t offset, int whence);
 	void fflush(void *fp);	
 	int64_t ftell(void *fp);

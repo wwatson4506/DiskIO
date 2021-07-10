@@ -30,6 +30,8 @@ CMD_ENTRY microBox::Cmds[] =
     {"mkdir", microBox::mkdirCB},
     {"rmdir", microBox::rmdirCB},
     {"rm", microBox::rmCB},
+    {"rename", microBox::renameCB},
+    {"cp", microBox::cpCB},
     {NULL, NULL}
 };
 
@@ -992,6 +994,89 @@ void microBox::rm(char** pParam, uint8_t parCnt)
 		}
 }
 
+void microBox::rename(char** pParam, uint8_t parCnt)
+{
+	char tempPath[256];
+
+	if(pParam[0] == NULL) {
+		ErrorDir(F("rename"));
+		return;
+	}	
+	strcpy(tempPath, pParam[0]);
+	if(!dioMB.rename(pParam[0], pParam[1])) {
+			ErrorDir(F("rename"));
+			return;
+		}
+}
+
+void microBox::cp(char** pParam, uint8_t parCnt)
+{
+    int32_t br = 0, bw = 0;          // File read/write count
+	uint32_t bufferSize = 8*1024; // Buffer size. Play with this:)
+	uint32_t buffer[bufferSize];  // File copy buffer
+	uint32_t cntr = 0;
+	uint32_t start = 0, finish = 0;
+	uint32_t bytesRW = 0;
+
+	// Create an instance of PFsFile for source file.
+	PFsFile src; 
+	// Create an instance of PFsFile for destination file.
+	PFsFile dest; 
+
+	if((pParam[0] == NULL) || (pParam[1] == NULL)) {
+		ErrorDir(F("cp"));
+		return;
+	}	
+	if(!dioMB.exists(pParam[0])) {
+			ErrorDir(F("cp"));
+			return;
+	}
+		if(!dioMB.open(&src, (char *)pParam[0], O_RDONLY)) {
+			ErrorDir(F("cp"));
+			return;
+		}
+		if(!dioMB.open(&dest, (char *)pParam[1], O_WRITE | O_CREAT | O_TRUNC)) {
+			ErrorDir(F("cp"));
+			return;
+		}
+	
+		/* Copy source to destination */
+		start = micros();
+		for (;;) {
+#if 1
+			cntr++;
+			if(!(cntr % 10)) Serial.printf("*");
+			if(!(cntr % 640)) Serial.printf("\n");
+
+#endif
+			br = dioMB.read(&src, buffer, sizeof(buffer));  // Read buffer size of source file.
+ 			if (br <= 0) break; // Error or EOF
+
+			bw = dioMB.write(&dest, buffer, br); // Write br bytes to the destination file.
+ 			if (bw < br) break; // Error or disk is full
+
+			bytesRW += (uint32_t)bw;
+		}
+		dioMB.fflush(&dest); // Flush write buffer.
+
+		// Close open files
+		dioMB.close(&src);
+		dioMB.close(&dest);
+
+		if((br < 0) || (bw < br)) {
+			ErrorDir(F("cp"));
+			return;
+		}
+			
+		finish = (micros() - start); // Get total copy time.
+		float MegaBytes = (bytesRW*1.0f)/(1.0f*finish);
+#if 1
+		Serial.printf("\nCopied %u bytes in %f seconds. Speed: %f MB/s\n",
+						bytesRW,(1.0*finish)/1000000.0,MegaBytes);
+#endif
+	return;
+}
+
 void microBox::ListDirCB(char **pParam, uint8_t parCnt)
 {
     microbox.ListDir(pParam, parCnt);
@@ -1057,3 +1142,12 @@ void microBox::rmCB(char** pParam, uint8_t parCnt)
     microbox.rm(pParam, parCnt);
 }
 
+void microBox::renameCB(char** pParam, uint8_t parCnt)
+{
+    microbox.rename(pParam, parCnt);
+}
+
+void microBox::cpCB(char** pParam, uint8_t parCnt)
+{
+    microbox.cp(pParam, parCnt);
+}

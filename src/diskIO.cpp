@@ -373,6 +373,9 @@ int diskIO::getLogicalDriveNumber(char *path) {
 				return -1; // Indicate failure. Logical drive not found.
 			}
 			return volume; // Return Logical drive number.
+		} else { // Drive Spec given but not found.
+			mscError = LDRIVE_NOT_FOUND; // Error number 252.
+			return -1;
 		}
 	}
 
@@ -403,6 +406,9 @@ int diskIO::getLogicalDriveNumber(char *path) {
 				return -1; // Indicate failure. Logical drive not found.
 			}
 			return volume; // Return Logical drive number.
+		} else { // Drive Spec given but not found.
+			mscError = LDRIVE_NOT_FOUND; // Error number 252.
+			return -1;
 		}
 	} 
 	return currDrv;	// Return default logical drive. (No Drive spec given) 
@@ -411,6 +417,9 @@ int diskIO::getLogicalDriveNumber(char *path) {
 // Check for a valid drive spec (/volume name/).
 // Return possible path spec stripped of drive spec.
 int diskIO::isDriveSpec(char *driveSpec) {
+#ifdef TalkToMe
+    Serial.printf(F("isDriveSpec(%s)\r\n"),driveSpec);
+#endif
 	const char *ds = driveSpec;
 	int  rslt = getLogicalDriveNumber(driveSpec);
 	if((rslt < 0) && (mscError != DISKIO_PASS)) { // Returned -1, Missing or invalid drive spec. 
@@ -448,7 +457,10 @@ int diskIO::changeDrive(char *driveSpec) {
 // given path to the current path for that logical drive. Finally it parses
 // the path spec processing any relative path specs to absolute path specs.
 bool diskIO::processPathSpec(char *path) {
-	int ldNum = 0;
+#ifdef TalkToMe
+    Serial.printf(F("processPathSpec(%s)\r\n"),path);
+#endif
+ 	int ldNum = 0;
 	char tempPath[256];
 
 	// Check for a drive spec. 
@@ -460,13 +472,11 @@ bool diskIO::processPathSpec(char *path) {
 		currDrv = (uint8_t)ldNum;	// Set new logical drive index.
 		mp[ldNum].chvol(); // Change to the new logical drive.
 	}
-
 	// Get current path spec and add '/' + given path spec to it.
 	if(strlen(path) != 1)
 		sprintf(tempPath, "%s/%s", drvIdx[currDrv].currentPath, path);
 	else
 		strcpy(tempPath,path);
-
 	// Check for '.', '..', '../'.
 	if(!parsePathSpec(tempPath)) {
 		mscError = INVALID_PATH_NAME;
@@ -637,6 +647,7 @@ bool diskIO::lsDir(char *dirPath) {
 	pattern[0] = 0;
 	 
 	bool wildcards = false;
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
     
     // Preserve original path spec. Should only change if chdir() is used.	
@@ -740,8 +751,9 @@ bool diskIO::lsFiles(PFsFile *dir, char *pattern, bool wc) {
 //---------------------------------------------------------------------------
 bool diskIO::chdir(char *dirPath) {
 #ifdef TalkToMe
-  Serial.printf("chdir %s...\r\n", path);
+  Serial.printf("chdir(%s)\r\n", dirPath);
 #endif
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
 	char tempPath[256];
 	char path[256];
 
@@ -775,29 +787,25 @@ bool diskIO::chdir(char *dirPath) {
 // Will fail if directory exsits or is an invald path spec.
 //---------------------------------------------------------------------------
 bool diskIO::mkdir(char *path) {
-	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
-
+#ifdef TalkToMe
+    Serial.printf(F("mkdir(%s)\r\n"),path);
+#endif
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
+ 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 	char savePath[256];
 	savePath[0] = 0;
-
+	
     // Preserve original path spec. Should only change if chdir() is used.	
 	strcpy(savePath,path);
-
 	// Process path spec.  Return false if failed (-1).
-	if(!processPathSpec(savePath)) return false;
-
-	if(mp[currDrv].exists(savePath)) {
-		mscError = PATH_EXISTS;
-		return false;
+	if(processPathSpec(savePath))
+		if(!mp[currDrv].mkdir(savePath, true)) mscError = MKDIR_ERROR;
+	if(currDrv != drive) {
+		mp[drive].chvol();  // Change back to original logical drive. If changed.
+		currDrv = drive;    // Ditto with the drive index.
 	}
-	if(mp[currDrv].mkdir(savePath)) {
-		if(currDrv != drive) {
-			mp[drive].chvol();  // Change back to original logical drive. If changed.
-			currDrv = drive;    // Ditto with the drive index.
-		}
+	if(mscError == DISKIO_PASS)
 		return true;
-	}
-	mscError = MKDIR_ERROR;
 	return false;
 }
 
@@ -806,6 +814,7 @@ bool diskIO::mkdir(char *path) {
 // Will fail if file does not exsit or is an invald path spec.
 //---------------------------------------------------------------------------
 bool diskIO::rm(char *dirPath) {
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 	char savePath[256];
 	savePath[0] = 0;
@@ -814,20 +823,14 @@ bool diskIO::rm(char *dirPath) {
 	strcpy(savePath,dirPath);
 
 	// Process path spec.  Return false if failed (-1).
-	if(!processPathSpec(savePath)) return false;
-
-	if(!mp[currDrv].exists(savePath)) {
-		mscError = PATH_NOT_EXIST;
-		return false;
+	if(processPathSpec(savePath))
+		if(!mp[currDrv].remove(savePath)) mscError = RM_ERROR;
+	if(currDrv != drive) {
+		mp[drive].chvol();  // Change back to original logical drive. If changed.
+		currDrv = drive;    // Ditto with the drive index.
 	}
-	if(mp[currDrv].remove(savePath)) {
-		if(currDrv != drive) {
-			mp[drive].chvol();  // Change back to original logical drive. If changed.
-			currDrv = drive;    // Ditto with the drive index.
-		}
+	if(mscError == DISKIO_PASS)
 		return true;
-	}
-	mscError = RM_ERROR;
 	return false;
 }
 
@@ -836,28 +839,22 @@ bool diskIO::rm(char *dirPath) {
 // Will fail if directory does not exsit or is an invald path spec.
 //---------------------------------------------------------------------------
 bool diskIO::rmdir(char *dirPath) {
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 	char savePath[256];
 	savePath[0] = 0;
 
     // Preserve original path spec. Should only change if chdir() is used.	
 	strcpy(savePath,dirPath);
-
 	// Process path spec.  Return false if failed (-1).
-	if(!processPathSpec(savePath)) return false;
-
-	if(!mp[currDrv].exists(savePath)) {
-		mscError = PATH_NOT_EXIST;
-		return false;
+	if(processPathSpec(savePath))
+		if(!mp[currDrv].rmdir(savePath)) mscError = RMDIR_ERROR;
+	if(currDrv != drive) {
+		mp[drive].chvol();  // Change back to original logical drive. If changed.
+		currDrv = drive;    // Ditto with the drive index.
 	}
-	if(mp[currDrv].rmdir(savePath)) {
-		if(currDrv != drive) {
-			mp[drive].chvol();  // Change back to original logical drive. If changed.
-			currDrv = drive;    // Ditto with the drive index.
-		}
+	if(mscError == DISKIO_PASS)
 		return true;
-	}
-	mscError = RMDIR_ERROR;
 	return false;
 }
 
@@ -866,6 +863,7 @@ bool diskIO::rmdir(char *dirPath) {
 // Will fail if directory/file does not exsit or is an invald path spec.
 //---------------------------------------------------------------------------
 bool diskIO::exists(char *dirPath) {
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 	bool rslt = false;
 	char savePath[256];
@@ -875,13 +873,18 @@ bool diskIO::exists(char *dirPath) {
 	strcpy(savePath,dirPath);
 
 	// Process path spec.  Return false if failed (-1).
-	if(!processPathSpec(savePath)) return false;
-
-	rslt = mp[currDrv].exists(savePath);
-	if(!rslt) mscError = PATH_NOT_EXIST;
-	mp[drive].chvol();  // Change back to original logical drive. If changed.
-	currDrv = drive;    // Ditto with the drive index.
-
+	if(processPathSpec(savePath)) {
+		rslt = mp[currDrv].exists(savePath);
+		if(!rslt) {
+			mscError = PATH_NOT_EXIST;
+		} else {
+			mscError = PATH_EXISTS;
+		}
+	}
+	if(currDrv != drive) {
+		mp[drive].chvol();  // Change back to original logical drive. If changed.
+		currDrv = drive;    // Ditto with the drive index.
+	}
 	return rslt;
 }
 
@@ -889,12 +892,13 @@ bool diskIO::exists(char *dirPath) {
 // Test for exsistance of file or directory.
 // Will fail if directory/file does not exsit or is an invald path spec.
 //---------------------------------------------------------------------------
-bool diskIO::rename(char *oldpath, const char *newpath) {
+bool diskIO::rename(char *oldpath, char *newpath) {
 #ifdef TalkToMe
 	Serial.printf(F("rename()\r\n"));
 #endif
 	char savePath[256];
 	savePath[0] = 0;
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 
     // Preserve original path spec. Should only change if chdir() is used.	
@@ -918,11 +922,11 @@ bool diskIO::rename(char *oldpath, const char *newpath) {
 // Open file or directory.
 //---------------------------------------------------------------------------
 bool diskIO::open(void *fp, char* dirPath, oflag_t oflag) {
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 
-	// Setup two types. One for MSC and one for SDIO/SPISD. 
-	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
-	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
+	// Setup file pointer. 
+	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
 
     // Preserve original path spec. Should only change if chdir() is used.	
 	char savePath[256];
@@ -930,63 +934,32 @@ bool diskIO::open(void *fp, char* dirPath, oflag_t oflag) {
 	strcpy(savePath,dirPath);
 
 	// Process path spec.  Return false if failed (-1).
-	if(!processPathSpec(savePath)) return false;
-	
-	// Use the proper file system for the device type. ie: MSC or SD/SDIO.
-	switch(drvIdx[currDrv].ifaceType) {
-		case USB_TYPE:
-			if(!mscFtype->open(&mp[currDrv], savePath, oflag)) {
-				mscError = OPEN_FAILED_USB;
-				return false;
-			}
-			break;
-		case SDIO_TYPE:
-		if(!sdFtype->open(reinterpret_cast < FsVolume * > (&mp[currDrv]), savePath, oflag)) {
-				mscError = OPEN_FAILED_SDIO;
-				return false;
-			}
-			break;
-		case SPI_TYPE:
-			if(!sdFtype->open(reinterpret_cast < FsVolume * > (&mp[currDrv]), savePath, oflag)) {
-				mscError = OPEN_FAILED_SPI;
-				return false;
-			}
-			break;
-		default:
-			break;
+	if(processPathSpec(savePath)) {
+		// Check for missing path name.
+		if((savePath[0] = '/') && (strlen(savePath) == 1)) {
+			mscError = INVALID_PATH_NAME;
+		} else if(!Fp->open(&mp[currDrv], savePath, oflag)) {
+			mscError = OPEN_FAILED;
+		}
 	}
 	if(currDrv != drive) {
 		mp[drive].chvol();  // Change back to original logical drive. If changed.
 		currDrv = drive;    // Ditto with the drive index.
 	}
-	return true;
-	
+	if(mscError == DISKIO_PASS)
+		return true;
+	return false;
 }
 
 //---------------------------------------------------------------------------
 // close file or directory.
 //---------------------------------------------------------------------------
 bool diskIO::close(void *fp) {
-
-	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp ); 
-	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
-
-	switch(drvIdx[currDrv].ifaceType) {
-		case USB_TYPE:
-			if(!mscFtype->close()) {
-				mscError = CLOSE_FAILED_USB;
-				return false;
-			}
-			break;
-		case SDIO_TYPE:
-		case SPI_TYPE:
-			if(!sdFtype->close()) {
-				mscError = CLOSE_FAILED_SD;
-				return false;
-			}
-			break;
-		default:
-			break;
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
+	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp ); 
+	if(!Fp->close()) {
+		mscError = CLOSE_FAILED;
+		return false;
 	}
 	return true;
 }
@@ -994,129 +967,65 @@ bool diskIO::close(void *fp) {
 //---------------------------------------------------------------------------
 // Read from an open file.
 //---------------------------------------------------------------------------
-int diskIO::read(void *fp, char *buf, size_t count) {
+int diskIO::read(void *fp, void *buf, size_t count) {
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
 
-	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
-	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
+	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
 	int br = 0;
-	
-	switch(drvIdx[currDrv].ifaceType) {
-		case USB_TYPE:
-			br = mscFtype->read(buf, count);
-			if(br <= 0) {
-				mscError = READ_ERROR_USB;
-				return br;
-			}
-			break;
-		case SDIO_TYPE:
-		case SPI_TYPE:
-			br = sdFtype->read(buf, count);
-			if(br <= 0) {
-				mscError = READ_ERROR_SD;
-				return br;
-			}
-			break;
-		default:
-			break;
+
+	br = Fp->read(buf, count);
+	if(br <= 0) {
+		mscError = READ_ERROR;
+		return br;
 	}
 	return br;
-		
 }
 
 //---------------------------------------------------------------------------
 // Write to an open file.
 //---------------------------------------------------------------------------
-size_t diskIO::write(void *fp, char *buf, size_t count) {
+size_t diskIO::write(void *fp, void *buf, size_t count) {
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
 
-	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
-	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
+	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
 	int bw = 0;
 	
-	switch(drvIdx[currDrv].ifaceType) {
-		case USB_TYPE:
-			bw = mscFtype->write(buf, count);
-			if(bw != (int)count) {
-				mscError = WRITE_ERROR_USB;
-				return bw;
-			}
-			break;
-		case SDIO_TYPE:
-		case SPI_TYPE:
-			bw = sdFtype->write(buf, count);
-			if(bw != (int)count) {
-				mscError = WRITE_ERROR_SD;
-				return bw;
-			}
-			break;
-		default:
-			break;
+	bw = Fp->write(buf, count);
+	if(bw != (int)count) {
+		mscError = WRITE_ERROR;
+		return bw;
 	}
 	return bw;
-		
 }
 
 //---------------------------------------------------------------------------
 // Seek to an offset in an open file.
 //---------------------------------------------------------------------------
 off_t diskIO::lseek(void *fp, off_t offset, int whence) {
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
+	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
 
-	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
-	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
-	
-	switch(drvIdx[currDrv].ifaceType) {
-		case USB_TYPE:
-			switch (whence) {
-				case SEEK_SET:
-					if (!mscFtype->seekSet(offset)) {
-						mscError = SEEK_ERROR_USB;
-						return -1;
-					}
-					return mscFtype->position();
-				break;
-				case SEEK_CUR:
-					if (!mscFtype->seekCur(offset)) {
-						mscError = SEEK_ERROR_USB;
-						return -1;
-					}
-					return mscFtype->position();
-				break;
-				case SEEK_END:
-					if (!mscFtype->seekEnd(offset)) {
-						mscError = SEEK_ERROR_USB;
-						return -1;
-					}
-					return mscFtype->position();
-				break;
+	switch (whence) {
+		case SEEK_SET:
+			if (!Fp->seekSet(offset)) {
+				mscError = SEEK_ERROR;
+				return -1;
 			}
+			return Fp->position();
 			break;
-		case SDIO_TYPE:
-		case SPI_TYPE:
-			switch (whence) {
-				case SEEK_SET:
-					if (!sdFtype->seekSet(offset)) {
-						mscError = SEEK_ERROR_SD;
-						return -1;
-					}
-					return sdFtype->position();
-				break;
-				case SEEK_CUR:
-					if (!sdFtype->seekCur(offset)) {
-						mscError = SEEK_ERROR_SD;
-						return -1;
-					}
-					return sdFtype->position();
-				break;
-				case SEEK_END:
-					if (!sdFtype->seekEnd(offset)) {
-						mscError = SEEK_ERROR_SD;
-						return -1;
-					}
-					return sdFtype->position();
-				break;
-
-		}
+		case SEEK_CUR:
+			if (!Fp->seekCur(offset)) {
+				mscError = SEEK_ERROR;
+				return -1;
+			}
+			return Fp->position();
 			break;
-		default:
+		case SEEK_END:
+			if (!Fp->seekEnd(offset)) {
+				mscError = SEEK_ERROR;
+				return -1;
+			}
+			return Fp->position();
 			break;
 	}
 	return -1;
@@ -1127,44 +1036,22 @@ off_t diskIO::lseek(void *fp, off_t offset, int whence) {
 // Flush an open file. Sync all un-written data to an open file.
 //---------------------------------------------------------------------------
 void diskIO::fflush(void *fp) {
-	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
-	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
-
-	switch(drvIdx[currDrv].ifaceType) {
-		case USB_TYPE:
-			mscFtype->flush();
-			break;
-		case SDIO_TYPE:
-		case SPI_TYPE:
-			sdFtype->flush();
-			break;
-		default:
-			break;
-	}
+	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
+	Fp->flush();
 }
 
 //---------------------------------------------------------------------------
 // Return current file position.
 //---------------------------------------------------------------------------
 int64_t diskIO::ftell(void *fp) {
-	PFsFile *mscFtype = reinterpret_cast < PFsFile * > ( fp );
-	FsFile *sdFtype = reinterpret_cast < FsFile * > ( fp );
+	mscError = DISKIO_PASS; // Clear any exsisting error codes.
+	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
 	uint64_t filePos = 0;
-	switch(drvIdx[currDrv].ifaceType) {
-		case USB_TYPE:
-			filePos = mscFtype->curPosition();
-			break;
-		case SDIO_TYPE:
-		case SPI_TYPE:
-			filePos = sdFtype->curPosition();
-			break;
-		default:
-			break;
-	}
+
+	filePos = Fp->curPosition();
 	if(filePos < 0 ) {
 		mscError = FTELL_ERROR;
 		return -1;
 	}
-	else
-	    return filePos;
+    return filePos;
 }
