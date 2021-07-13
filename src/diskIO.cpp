@@ -61,6 +61,49 @@ uint8_t diskIO::error(void) {
 	return error;
 }
 
+// -----------------------------------
+// Return bytes used for this device.
+// -----------------------------------
+uint64_t diskIO::usedSize(uint8_t drive_number) {
+		switch (drvIdx[drive_number].ifaceType) {
+			case SPI_TYPE:
+				return (uint64_t)(sdSPI.clusterCount() - sdSPI.freeClusterCount())
+						* (uint64_t)sdSPI.bytesPerCluster();
+				break;
+			case SDIO_TYPE:
+				return (uint64_t)(sd.clusterCount() - sd.freeClusterCount())
+						* (uint64_t)sd.bytesPerCluster();
+				break;
+			case USB_TYPE:
+				return (uint64_t)(msc[drvIdx[drive_number].driveNumber].clusterCount()
+						- msc[drvIdx[drive_number].driveNumber].freeClusterCount())
+						* (uint64_t)msc[drive_number].bytesPerCluster();
+				break;
+			default:
+				return 0;
+		}
+}
+
+// -----------------------------------------------
+// Return total capacity in bytes for this device.
+// -----------------------------------------------
+uint64_t diskIO::totalSize(uint8_t drive_number) {
+		switch (drvIdx[drive_number].ifaceType) {
+			case SPI_TYPE:
+				return (uint64_t)sdSPI.clusterCount() * (uint64_t)sdSPI.bytesPerCluster();
+				break;
+			case SDIO_TYPE:
+				return (uint64_t)sd.clusterCount() * (uint64_t)sd.bytesPerCluster();
+				break;
+			case USB_TYPE:
+				return (uint64_t)msc[drvIdx[drive_number].driveNumber].clusterCount()
+						* (uint64_t)msc[drvIdx[drive_number].driveNumber].bytesPerCluster();
+				break;
+			default:
+			return 0;
+		}
+}
+
 // -------------------------------------------------------------------------
 // Initialize diskIO system.
 // -------------------------------------------------------------------------
@@ -100,6 +143,8 @@ bool diskIO::init() {
 	}
 	processSDDrive(LOGICAL_DRIVE_SDIO);
 	ProcessSPISD(LOGICAL_DRIVE_SDSPI);
+	ProcessLFS(LOGICAL_DRIVE_LFS);
+	
 	chdir((char *)"0:");
 	currDrv = 0;	      // Set default drive to 0
 	mscError = 0;		  // Clear errors
@@ -177,15 +222,12 @@ void diskIO::processMSDrive(uint8_t drive_number, msController &msDrive, UsbFs &
   for (i = slot; i < (slot + SLOT_OFFSET); i++) {
     if (count_mp >= CNT_PARITIONS) return; // don't overrun
     if (mp[i].begin((USBMSCDevice*)msc.usbDrive(), true, (i - slot) + 1)) {
-//	  drvIdx[i].driveNumber = drive_number;
       mp[i].getVolumeLabel(drvIdx[i].name, sizeof(drvIdx[i].name));
 	  sprintf(drvIdx[i].fullPath ,"/%s/", drvIdx[i].name);
 	  drvIdx[i].currentPath[0] = '\0';
       drvIdx[i].fatType = mp[i].fatType();
-      drvIdx[i].ldNumber = i;
+//      drvIdx[i].ldNumber = i;
       drvIdx[i].driveType = msc.usbDrive()->usbType();
-      drvIdx[i].devAddress = drvIdx[i].thisDrive->getDeviceAddress();
-      drvIdx[i].thisDrive = &msDrive;
       drvIdx[i].ifaceType = USB_TYPE;
       drvIdx[i].valid = true;
       count_mp++;
@@ -214,12 +256,11 @@ void diskIO::processSDDrive(uint8_t drive_number)
   for (i = slot; i < (slot + SLOT_OFFSET); i++) {
     if (count_mp >= CNT_PARITIONS) return; // don't overrun
     if (mp[i].begin(sd.card(), true, (i - slot) + 1)) {
-//      drvIdx[i].driveNumber = LOGICAL_DRIVE_SDIO;
       mp[i].getVolumeLabel(drvIdx[i].name, sizeof(drvIdx[i].name));
 	  sprintf(drvIdx[i].fullPath ,"/%s/", drvIdx[i].name);
 	  drvIdx[i].currentPath[0] = '\0';
       drvIdx[i].fatType = mp[i].fatType();
-      drvIdx[i].ldNumber = i;
+//      drvIdx[i].ldNumber = i;
       drvIdx[i].driveType = sd.card()->type();
       drvIdx[i].ifaceType = SDIO_TYPE;
       drvIdx[i].valid = true;
@@ -247,12 +288,11 @@ void diskIO::ProcessSPISD(uint8_t drive_number) {
   for (i = slot; i < (slot + SLOT_OFFSET); i++) {
   if (count_mp >= CNT_PARITIONS) return; // don't overrun
     if (mp[i].begin(sdSPI.card(), true, (i - slot) + 1)) {
-//      drvIdx[i].driveNumber = LOGICAL_DRIVE_SDSPI;
       mp[i].getVolumeLabel(drvIdx[i].name, sizeof(drvIdx[i].name));
 	  sprintf(drvIdx[i].fullPath ,"/%s/", drvIdx[i].name);
 	  drvIdx[i].currentPath[0] = '\0';
       drvIdx[i].fatType = mp[i].fatType();
-      drvIdx[i].ldNumber = i;
+//      drvIdx[i].ldNumber = i;
       drvIdx[i].driveType = sdSPI.card()->type();
       drvIdx[i].ifaceType = SPI_TYPE;
       drvIdx[i].valid = true;
@@ -261,6 +301,32 @@ void diskIO::ProcessSPISD(uint8_t drive_number) {
   }
   // Move index to next set of 4 entries for next drive.
   while((count_mp % SLOT_OFFSET)) count_mp++;
+}
+
+// --------------------------------------
+// Mount External SPI SDcard if possible.
+// (KurtE).
+// --------------------------------------
+void diskIO::ProcessLFS(uint8_t drive_number) {
+#ifdef TalkToMe
+    Serial.printf(F("Initialize LFS device %d...\n"),drive_number);
+#endif
+  uint8_t slot = drive_number * SLOT_OFFSET;
+//  pinMode(QPINAND_CS, OUTPUT);
+//  digitalWrite(QPINAND_CS, HIGH);
+
+  if (!myfs.begin()) {
+	Serial.printf("Error starting %s\n", memDrvName);
+	return;
+  }
+      strcpy(drvIdx[slot].name, memDrvName);
+	  sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
+	  drvIdx[slot].currentPath[0] = '\0';
+      drvIdx[slot].fatType = LFS_TYPE;
+      drvIdx[slot].driveType = LFS_TYPE;
+      drvIdx[slot].ifaceType = LFS_TYPE;
+      drvIdx[slot].valid = true;
+
 }
 
 //--------------------------------------------------
@@ -305,6 +371,9 @@ void diskIO::listAvailableDrives(print_t* p) {
 				break;
 			case SD_CARD_TYPE_USB:
 				p->printf(F("Drive Type: USB\r\n"));
+				break;
+			case LFS_TYPE:
+				p->printf(F("Drive Type: LFS\r\n"));
 				break;
 			default:
 				p->printf(F("Unknown\r\n"));
@@ -640,12 +709,14 @@ bool diskIO::lsDir(char *dirPath) {
 #ifdef TalkToMe
   Serial.printf("lsDir %s...\r\n", dirPath);
 #endif
-	PFsFile dir;
+	PFsFile dir; // SD, MSCFS.
+	File	lfsDir; // LittleFS.
+	
 	char savePath[256];
 	savePath[0] = 0;
 	char pattern[256];
 	pattern[0] = 0;
-	 
+
 	bool wildcards = false;
 	mscError = DISKIO_PASS; // Clear any exsisting error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
@@ -656,6 +727,7 @@ bool diskIO::lsDir(char *dirPath) {
 	// Process path spec.  Return false if failed (-1).
 	if(!processPathSpec(savePath)) return false;
 
+
 	// Show current logical drive name.
 	Serial.printf(F("Volume Label: %s\r\n"), drvIdx[currDrv].name);
 	// Show full path name (with logical drive name).
@@ -664,12 +736,18 @@ bool diskIO::lsDir(char *dirPath) {
 	// wildcards = true if any wildcards used else false.
 	wildcards = getWildCard((char *)savePath,pattern);  
 
-	// Try to open the directory.
-	if(!dir.open(savePath)) {
-		mscError = INVALID_PATH_NAME;
-		return false;  // Invalid path name.
+	if(drvIdx[currDrv].ifaceType == LFS_TYPE) {
+		if(!(lfsDir = myfs.open(savePath))) {
+			mscError = INVALID_PATH_NAME;
+			return false;  // Invalid path name.
+		}
+	} else {
+		// Try to open the directory.
+		if(!dir.open(savePath)) {
+			mscError = INVALID_PATH_NAME;
+			return false;  // Invalid path name.
+		}
 	}
-
 	// If wildcards given just list files that match (no sub directories) else
 	// List sub directories first then files.
 	if(wildcards) {
@@ -678,6 +756,8 @@ bool diskIO::lsDir(char *dirPath) {
 		lsSubDir(&dir);
 		lsFiles(&dir, pattern, wildcards);
 	}
+	Serial.printf("\r\nFree Space: %llu bytes\r\n\r\n",totalSize(currDrv)-usedSize(currDrv));
+
 	// If a logical drive was specified then switch back to default drive.
 	mp[drive].chvol();  // Change back to original logical drive. If changed.
 	currDrv = drive;    // Ditto with the drive index.

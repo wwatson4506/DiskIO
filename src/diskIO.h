@@ -4,16 +4,22 @@
 #define diskIO_h
 
 #include "mscFS.h"
+#include "LittleFS.h"
 
 #define CNT_MSDRIVES 4
-#define CNT_PARITIONS 24 
+#define CNT_PARITIONS 32 
 
 #define LOGICAL_DRIVE_SDIO  4
 #define LOGICAL_DRIVE_SDSPI 5
+#define LOGICAL_DRIVE_LFS   6
+
 #define SD_SPI_CS 10
 #define SPI_SPEED SD_SCK_MHZ(40)  // adjust to sd card 
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
 #define SD_SPICONFIG SdioConfig(FIFO_SDIO)
+#define QPINAND_CS 3
+
+const char memDrvName[] {"QPINAND"};
 
 // Path spec defines.
 #define DIRECTORY_SEPARATOR "/"
@@ -24,6 +30,7 @@
 #define USB_TYPE	0
 #define SDIO_TYPE	1
 #define SPI_TYPE	2
+#define LFS_TYPE	5
 
 // Four partition slot per physical device
 #define SLOT_OFFSET 4
@@ -52,7 +59,7 @@
 
 // Logical drive device descriptor struct based on partitions.
 typedef struct {
-	msController *thisDrive = nullptr;
+//	msController *thisDrive = nullptr;
 	char	name[32];        // Volume name as a drive name.
 	char	currentPath[256];    // Current default path spec.
 	char	fullPath[256];	 // Full path name. Includes Logical drive name.
@@ -63,7 +70,6 @@ typedef struct {
 	uint8_t	devAddress = 0;      // MSC device address
 	uint8_t	fatType = 0;     // FAT32 or ExFat
 	uint8_t	ifaceType = 0;	 // Interface type USB, SDHC, SPI.
-//	uint8_t	lastError = 0;
 } deviceDecriptorEntry_t;
 
 class diskIO : public PFsVolume
@@ -73,6 +79,8 @@ public:
 	deviceDecriptorEntry_t drvIdx[CNT_PARITIONS]; // An array of device descriptors.
 
 	uint8_t error(void);
+	uint64_t usedSize(uint8_t drive_number);
+	uint64_t totalSize(uint8_t drive_number);
 	bool init();
 	void checkDrivesConnected(void);
 	int  getLogicalDriveNumber(char *path);	
@@ -95,6 +103,7 @@ public:
 	void processMSDrive(uint8_t drive_number, msController &msDrive, UsbFs &msc);
 	void processSDDrive(uint8_t drive_number);
 	void ProcessSPISD(uint8_t drive_number);
+	void ProcessLFS(uint8_t drive_number);
 	bool processPathSpec(char *path);
 	bool isConnected(uint8_t deviceNumber);
 	uint8_t getVolumeCount(void);
@@ -113,9 +122,10 @@ private:
 	uint8_t count_mp = 0;
 	uint8_t currDrv = 0;
 	uint8_t m_error = 0;
-	UsbFs msc[CNT_MSDRIVES];
 	SdFs sd;
 	SdFs sdSPI;
+	UsbFs msc[CNT_MSDRIVES];
+	LittleFS_QPINAND myfs;
 	diskIO *m_diskio = this;
 };
 
