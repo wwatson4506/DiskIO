@@ -3,6 +3,7 @@
 
 #include "Arduino.h"
 #include "mscFS.h"
+#include "LittleFS.h"
 #include "diskIO.h"
 
 diskIO dio;  // One instance of diskIO.
@@ -10,6 +11,32 @@ int br = 0;
 int bw = 0;
 char buff[8192]; // Disk IO buffer.
 char sbuff[256]; // readLine buffer.
+
+// A small hex dump function
+void hexDump(const void *ptr, uint32_t len) {
+  uint32_t  i = 0, j = 0;
+  uint8_t   c=0;
+  const uint8_t *p = (const uint8_t *)ptr;
+
+  Serial.printf("BYTE      00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F\n");
+  Serial.printf("---------------------------------------------------------\n");
+  for(i = 0; i <= (len-1); i+=16) {
+   Serial.printf("%4.4lx      ",i);
+   for(j = 0; j < 16; j++) {
+      c = p[i+j];
+      Serial.printf("%2.2x ",c);
+    }
+    Serial.printf("  ");
+    for(j = 0; j < 16; j++) {
+      c = p[i+j];
+      if(c > 31 && c < 127)
+        Serial.printf("%c",c);
+      else
+        Serial.printf(".");
+    }
+    Serial.printf("\n");
+  }
+}
 
 // A simple read line function.
 char *readLine(char *s) {
@@ -40,19 +67,25 @@ char *readLine(char *s) {
 
 // Change 'device' to the volume name of one of your drives.
 // Or you can specify a logical drive number (partition number)
-// followed with a colon before the path name. 24 patitions are allowed. 0-23.
+// followed with a colon before the path name. 32 partitions are allowed. 0-23
+// used for PFsVolumes. 24-31 for LittlFS devices.
 // Use: 'listAvailableDrives(&Serial)' to list attached available volume labels
 // and logical drive numbers.
-const char *device = "0:test1.txt";
-//const char *device = "/32GEXFATP3/test1.txt";
+
+//char *device = "0:test1.txt"; // First logical drive on a USB physical drive.
+//char *device = "/16GEXFATP2/test1.txt"; // Second logical drive on a USB physical drive.
+//char *device = "/128GFAT32/test1.txt"; // Partition label name
+char *device = "24:test1.txt"; // Logical drive number (in this case QPINAND).
 
 void setup() {
   // Open serial communications and wait for port to open:
    while (!Serial) {
     SysCall::yield(); // wait for serial port to connect.
   }
+  if(CrashReport)
+    Serial.print(CrashReport);
   
-  // This line is use with VT100 capable terminal program.
+  // This line will only work with VT100 capable terminal program.
   Serial.printf("%c",12); // Clear screen (VT100).
   
   Serial.printf(F("DiskIO Testing\r\n\r\n"));
@@ -60,78 +93,123 @@ void setup() {
   
   // All initialization is done here.
   dio.init();
-  
+
   // Show a list of mounted partitions.
   Serial.printf(F("\r\nFound and mounted %d logical drives.\r\n"), dio.getVolumeCount());
   dio.listAvailableDrives(&Serial);
   Serial.printf(F("\r\n"));
 
-  if(!dio.lsDir((char *)"/"))
-	Serial.printf(F("lsDir() Failed: %s, Code: %d\r\n\r\n"), device, dio.error());
-  
-  // Setup string of text to write to a file (test1.txt).
-  sprintf(buff,"%s",(char *)F("This is a test line to test diskIO write() function"));
+  // List default logical drive and directory.
+  if(!dio.lsDir((char *)""))
+	Serial.printf(F("lsDir() Failed: %s, Code: %d\r\n\r\n"), dio.cwd(), dio.error());
 
-  // Create an instance of PFsFile.
-  PFsFile mscfl; 
+  // Setup string of text to write to a file (test1.txt).
+  sprintf(buff,"%s",(char *)"This is a test line to test diskIO write() function");
+
+  // Create an instance of PFsFile and File.
+  PFsFile mscfl; // For SD, SDIO and MSC devices.
+  File lfsfl;    // For LittleFS devices.
 
   // Open and create a file for write.
-  Serial.printf(F("Opening this file for write: '%s'\r\n"), device);
-  if(!dio.open(&mscfl,(const char *) device, O_WRONLY | O_CREAT | O_TRUNC))
-	Serial.printf(F("open() Failed: %s, Code: %d\r\n"), device, dio.error());
+  Serial.printf(F("\r\nOpening this file for write: '%s'\r\n"), device);
+  if(dio.getOsType(device) == PFSFILE_TYPE) {
+    if(!dio.open(&mscfl,(char *) device, O_WRONLY | O_CREAT | O_TRUNC))
+	  Serial.printf(F("open() Failed: %s, Code: %d\r\n"), device, dio.error());
+  } else { //LFS
+	if(!dio.lfsOpen(&lfsfl,(char *)device, FILE_WRITE_BEGIN))
+	  Serial.printf(F("open() Failed: %s, Code: %d\r\n"), device, dio.error());
+  }
 
   // Write our string to the open file.
-  bw = dio.write(&mscfl, buff, strlen(buff));
-  if(bw != (int)strlen(buff))
-  	Serial.printf(F("write() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  if(dio.getOsType(device) == PFSFILE_TYPE) {
+    bw = dio.write(&mscfl, buff, strlen(buff));
+	if(bw != (int)strlen(buff))
+	  Serial.printf(F("write() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  } else { // LFS
+    bw = dio.lfsWrite(&lfsfl, buff, strlen(buff));
+	if(bw != (int)strlen(buff))
+	  Serial.printf(F("write() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  }
 
   // Show the string we wrote to the file and the number of bytes written.
-  Serial.printf("What we wrote: '%s' to: %s\r\n",buff, device);
-  Serial.printf(F("%u bytes written to file.\r\n"), bw);
+  Serial.printf("What we wrote: '%s'",buff);
+  Serial.printf(F("\r\n%u bytes written to file.\r\n"), bw);
 
   // Sync the file.
   Serial.printf(F("flushing buff\r\n"));
-  dio.fflush(&mscfl);
+  if(dio.getOsType(device) == PFSFILE_TYPE) {
+    dio.fflush(&mscfl);
+  } else { // LFS
+    dio.lfsFflush(&lfsfl);
+  }
 
   //  Close the file.
-  Serial.printf(F("closing file: %s test1.txt\r\n"), device);
-  if(!dio.close(&mscfl))
-    Serial.printf(F("close() Failed: %s\r\n\r\n"), device, dio.error());
+  Serial.printf(F("closing file: %s\r\n"), device);
+  if(dio.getOsType(device) == PFSFILE_TYPE) {
+	if(!dio.close(&mscfl))
+		Serial.printf(F("close() Failed: %s\r\n\r\n"), device, dio.error());
+  } else { // LFS
+	if(!dio.lfsClose(&lfsfl))
+		Serial.printf(F("close() Failed: %s\r\n\r\n"), device, dio.error());
+  }
 
   // Re-open same file for read.
   Serial.printf(F("Opening this file for read: '%s'\r\n"), device);
-  if(!dio.open(&mscfl, (const char *)device, O_RDONLY))
-	Serial.printf(F("open() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  if(dio.getOsType(device) == PFSFILE_TYPE) {
+    if(!dio.open(&mscfl, (char *)device, FILE_READ))
+	  Serial.printf(F("open() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  } else { // LFS
+    if(!dio.lfsOpen(&lfsfl, (char *)device, FILE_READ))
+	  Serial.printf(F("open() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  }	  
 
   // Seekfile to position 10.
   Serial.printf(F("Seeking to file position 10\r\n"));
-  if(!dio.lseek(&mscfl, 10, SEEK_SET))
-  	Serial.printf(F("lseek() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  if(dio.getOsType(device) == PFSFILE_TYPE) {
+    if(!dio.lseek(&mscfl, 10, SEEK_SET))
+      Serial.printf(F("lseek() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  } else { // LFS
+    if(!dio.lfsLseek(&lfsfl, 10, SEEK_SET))
+      Serial.printf(F("lseek() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  }
 
   // Check the current file position.
   Serial.printf(F("Getting current file position\r\n"));
-  if(!dio.ftell(&mscfl))
-  	Serial.printf(F("ftell() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-  else
-  	Serial.printf(F("ftell() returned %d\r\n"), dio.ftell(&mscfl));
+  if(dio.getOsType(device) == PFSFILE_TYPE) {
+    if(!dio.ftell(&mscfl))
+   	  Serial.printf(F("ftell() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+    else
+  	  Serial.printf(F("ftell() returned %d\r\n"), dio.ftell(&mscfl));
+  } else { // LFS
+    if(!dio.lfsFtell(&lfsfl))
+   	  Serial.printf(F("lfsFtell() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+    else
+  	  Serial.printf(F("lfsFtell() returned %d\r\n"), dio.lfsFtell(&lfsfl));
+  }
 
   // Read in the line of text.    
-  if((br = dio.read(&mscfl, buff, 8192)) < 0)
-  	Serial.printf(F("read() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  if(dio.getOsType(device) == PFSFILE_TYPE) {
+    if((br = dio.read(&mscfl, buff, 8192)) < 0)
+      Serial.printf(F("read() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  } else {
+    if((br = dio.lfsRead(&lfsfl, buff, 8192)) < 0)
+      Serial.printf(F("read() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  }
   buff[br] = '\0';
-  
   // Show the line and the number of bytes read.
-  Serial.printf(F("What we read '%s' from %s\r\n"), buff, device);
-  Serial.printf(F("bytes read = %d\r\n"), br);
+  Serial.printf(F("What we read: '%s'"), buff);
+  Serial.printf(F("\r\nbytes read = %d\r\n"), br);
 
   //  Close the file.
-  if(!dio.close(&mscfl))
-    Serial.printf(F("close() Failed: %s code: %d\r\n\r\n"), device, dio.error());
+  Serial.printf(F("closing file: %s\r\n"), device);
+  if(dio.getOsType(device) == PFSFILE_TYPE) {
+    if(!dio.close(&mscfl))
+      Serial.printf(F("close() Failed: %s code: %d\r\n\r\n"), device, dio.error());
+  } else { // LFS
+    if(!dio.lfsClose(&lfsfl))
+      Serial.printf(F("close() Failed: %s code: %d\r\n\r\n"), device, dio.error());
+  }
 
-  // List the directory of device.
-  Serial.printf(F("\r\n"));
-  if(!dio.lsDir((char *)device))
-	Serial.printf(F("lsDir() Failed: %s, Code: %d\r\n\r\n"), device, dio.error());
   Serial.printf(F("Press enter to continue...\r\n"));
   readLine((char *)sbuff);
 }
@@ -145,24 +223,8 @@ void loop(void) {
   Serial.printf("Four USB drives are supported (SD's not yet).\r\n");
   Serial.printf(F("********************************************************\r\n\r\n"));
   
-  Serial.printf(F("checking for device #%d\r\n"), 0);
-  if(!dio.isConnected(0))
-    Serial.printf(F("USB Drive 0 not connected: Code 0x%2.2x\r\n"),dio.error());
-
-  Serial.printf(F("checking for device #%d\r\n"), 1);
-  if(!dio.isConnected(1))
-    Serial.printf(F("USB Drive 1 not connected: Code 0x%2.2x\r\n"),dio.error());
-
-  Serial.printf(F("checking for device #%d\r\n"), 2);
-  if(!dio.isConnected(2))
-    Serial.printf(F("USB Drive 2 not connected: Code 0x%2.2x\r\n"),dio.error());
-
-  Serial.printf(F("checking for device #%d\r\n"), 3);
-  if(!dio.isConnected(3))
-    Serial.printf(F("USB Drive 3 not connected: Code 0x%2.2x\r\n"),dio.error());
-
   dio.listAvailableDrives(&Serial);
-  Serial.printf(F("Press enter to continue...\r\n"));
 
+  Serial.printf(F("Press enter to continue...\r\n"));
   readLine((char *)sbuff);
 }
