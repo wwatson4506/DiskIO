@@ -72,10 +72,10 @@ char *readLine(char *s) {
 // Use: 'listAvailableDrives(&Serial)' to list attached available volume labels
 // and logical drive numbers.
 
-//char *device = "0:test1.txt"; // First logical drive on a USB physical drive.
+char *device = "0:test1.txt"; // First logical drive on a USB physical drive.
 //char *device = "/16GEXFATP2/test1.txt"; // Second logical drive on a USB physical drive.
 //char *device = "/128GFAT32/test1.txt"; // Partition label name
-char *device = "24:test1.txt"; // Logical drive number (in this case QPINAND).
+//char *device = "24:test1.txt"; // Logical drive number (in this case QPINAND).
 
 void setup() {
   // Open serial communications and wait for port to open:
