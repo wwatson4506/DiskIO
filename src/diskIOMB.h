@@ -82,6 +82,7 @@ private:
     static void LoadParCB(char **pParam, uint8_t parCnt);
     static void SaveParCB(char **pParam, uint8_t parCnt);
     static void clearCB(char** pParam, uint8_t parCnt);
+    static void helpCB(char** pParam, uint8_t parCnt);
     static void rmdirCB(char** pParam, uint8_t parCnt);
     static void mkdirCB(char** pParam, uint8_t parCnt);
     static void rmCB(char** pParam, uint8_t parCnt);
@@ -96,6 +97,7 @@ private:
     void watch(char** pParam, uint8_t parCnt);
     void watchcsv(char** pParam, uint8_t parCnt);
     void clear(char** pParam, uint8_t parCnt);
+    void help(char** pParam, uint8_t parCnt);
     void rmdir(char** pParam, uint8_t parCnt);
     void mkdir(char** pParam, uint8_t parCnt);
     void rm(char** pParam, uint8_t parCnt);

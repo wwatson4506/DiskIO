@@ -4,6 +4,8 @@
   More info under http://sebastian-duell.de
   Released under GPLv3.
   Heavily modified for Porting to Teensy T3.6, T4.0, T4.2, MicroMod?
+  By: Warren Watson 08-08-21.
+  See readme.md in this folder for info on microBox.
 */
 
 #include <diskIOMB.h>
@@ -32,6 +34,7 @@ CMD_ENTRY microBox::Cmds[] =
     {"rm", microBox::rmCB},
     {"rename", microBox::renameCB},
     {"cp", microBox::cpCB},
+    {"help", microBox::helpCB},
     {NULL, NULL}
 };
 
@@ -659,6 +662,7 @@ char *microBox::GetFile(char *pParam)
 
 void microBox::ListDrives(char **pParam, uint8_t parCnt)
 {
+	Serial.printf(F("\r\nFound %d logical drives.\r\n"),dioMB.getVolumeCount());
 	dioMB.listAvailableDrives(&Serial);
 	return;
 }
@@ -730,13 +734,10 @@ int8_t microBox::GetParamIdx(char* pParam, bool partStr, int8_t startIdx)
             dir = dioMB.cwd();
         if(dir != NULL)
         {
-Serial.printf("dir = %s\r\n", dir);
 
 //            if(strcmp_P(dir, PSTR("/dev")) == 0)
 //            {
                 file = GetFile(pParam);
-Serial.printf("file = %s\r\n", file);
-
                 if(file != NULL)
                 {
                     while(Params[i].paramName != NULL)
@@ -856,27 +857,57 @@ void microBox::Echo(char **pParam, uint8_t parCnt)
 
 void microBox::Cat(char** pParam, uint8_t parCnt)
 {
-	char buff[256]; // Disk IO buffer.
+	char buff[8192]; // Disk IO buffer.
     int br = 0;      // File read count
 	char tempPath[256];
 	buff[0] = 0;
 	// Create an instance of PFsFile.
 	PFsFile mscfl; 
-
-	if(pParam[0] == NULL) {
+	File lfsfl;
+	if(pParam[0] == NULL) { // Invalid path spec.
 		ErrorDir(F("cat"));
 		return;
 	}	
-	strcpy(tempPath, pParam[0]);
-	if(dioMB.exists(tempPath)) {
+	strcpy(tempPath, pParam[0]); // Preserve path spec.
+	// Check which file system we are using LFS or PFsFile type.
+	if((dioMB.getOsType(tempPath) == FILE_TYPE))  {
+		if(!dioMB.lfsExists(tempPath)) {
+			ErrorDir(F("cat"));
+			return;
+		}
+	} else {
+		if(!dioMB.exists(tempPath)) {
+			ErrorDir(F("cat"));
+			return;
+		}
+	}
+	// Check which file system we are using LFS or PFsFile type.
+	if((dioMB.getOsType(tempPath) == FILE_TYPE))  {
+		if(!dioMB.lfsOpen(&lfsfl, (char *)tempPath, O_RDONLY)) {
+			ErrorDir(F("cat"));
+			return;
+		}
+		for(;;) {
+			br = dioMB.lfsRead(&lfsfl, buff, sizeof(buff));
+			if (br <= 0) return; // Error
+			Serial.printf("%s",buff);
+		}
+		if(br < 0) {
+			ErrorDir(F("cat"));
+			return;
+		}
+		if(!dioMB.lfsClose(&lfsfl)) {
+			ErrorDir(F("cat"));
+			return;
+		}
+	} else {
 		if(!dioMB.open(&mscfl, (char *)tempPath, O_RDONLY)) {
 			ErrorDir(F("cat"));
 			return;
 		}
 		for(;;) {
 			br = mscfl.fgets(buff, sizeof(buff));
-			if (br <= 0)
-				return; // Error
+			if (br <= 0) return; // Error
 			Serial.printf("%s",buff);
 		}
 		if(br < 0) {
@@ -886,9 +917,7 @@ void microBox::Cat(char** pParam, uint8_t parCnt)
 		if(!dioMB.close(&mscfl)) {
 			ErrorDir(F("cat"));
 			return;
-		}	
-	} else {
-		ErrorDir(F("cat"));
+		}
 	}
 	return;
 }
@@ -947,6 +976,31 @@ void microBox::ReadWriteParamEE(bool write)
 void microBox::clear(char** pParam, uint8_t parCnt)
 {
 	Serial.printf("%c",12);
+}
+
+void microBox::help(char** pParam, uint8_t parCnt)
+{
+	Serial.printf(F("\r\nAvailable Commands:\r\n\r\n"));
+	Serial.printf(F("clear  - Clear Screen (VT100 terminal Only)\r\n"));
+	Serial.printf(F("ld     - List available logical drives.\r\n"));
+	Serial.printf(F("ls     - List files and directories.\r\n"));
+	Serial.printf(F("cd     - Change logical drives and directories.\r\n"));
+	Serial.printf(F("mkdir  - Make directory.\r\n"));
+	Serial.printf(F("rmdir  - Remove directory (must be empty).\r\n"));
+	Serial.printf(F("rm     - Remove file.\r\n"));
+	Serial.printf(F("rename - Rename file or directory.\r\n"));
+	Serial.printf(F("cp     - Copy file (src dest).\r\n"));
+	Serial.printf(F("cat    - List file (Ascii only).\r\n\r\n"));
+	Serial.printf(F("All commands except clear and ld accept an optional drive spec.\r\n"));
+	Serial.printf(F("The drive spec can be /volume name/ (forward slashes required)\r\n"));
+	Serial.printf(F("or a logical drive number 0:-32: (colon after number required).\r\n"));
+	Serial.printf(F("Examples: cp /QPINAND/test.txt 1:test.txt\r\n"));
+	Serial.printf(F("          cp test.txt test1.txt\r\n"));
+	Serial.printf(F("Both cp and rename require a space between arguments.\r\n"));
+	Serial.printf(F("One space is required between command and argument.\r\n"));
+	Serial.printf(F("Relative path specs and wilcards are supported.\r\n"));
+	Serial.printf(F("Example: ls 16:a/b/../*??*.cpp.\r\n\r\n"));
+	
 }
 
 void microBox::mkdir(char** pParam, uint8_t parCnt)
@@ -1018,61 +1072,116 @@ void microBox::cp(char** pParam, uint8_t parCnt)
 	uint32_t start = 0, finish = 0;
 	uint32_t bytesRW = 0;
 
-	// Create an instance of PFsFile for source file.
 	PFsFile src; 
-	// Create an instance of PFsFile for destination file.
+	File lfsSrc;
 	PFsFile dest; 
+	File lfsDest; 
 
 	if((pParam[0] == NULL) || (pParam[1] == NULL)) {
 		ErrorDir(F("cp"));
 		return;
 	}	
-	if(!dioMB.exists(pParam[0])) {
-			ErrorDir(F("cp"));
-			return;
+	uint8_t srcType = dioMB.getOsType(pParam[0]);
+	uint8_t destType = dioMB.getOsType(pParam[1]);
+	// Does source file exist?
+	if(srcType == PFSFILE_TYPE)  {
+		if(!dioMB.exists(pParam[0])) {
+				ErrorDir(F("cp"));
+				return;
+		}
+	} else {
+		if(!dioMB.lfsExists(pParam[0])) {
+				ErrorDir(F("cp"));
+				return;
+		}
 	}
+	// Open source file.
+	if(srcType == PFSFILE_TYPE)  {
 		if(!dioMB.open(&src, (char *)pParam[0], O_RDONLY)) {
 			ErrorDir(F("cp"));
 			return;
 		}
+	} else {
+		if(!dioMB.lfsOpen(&lfsSrc, (char *)pParam[0], FILE_READ)) {
+			ErrorDir(F("cp"));
+			return;
+		}
+	}
+	// Open destination file.
+	if(destType == PFSFILE_TYPE)  {
 		if(!dioMB.open(&dest, (char *)pParam[1], O_WRITE | O_CREAT | O_TRUNC)) {
 			ErrorDir(F("cp"));
 			return;
 		}
-	
-		/* Copy source to destination */
-		start = micros();
-		for (;;) {
-#if 1
-			cntr++;
-			if(!(cntr % 10)) Serial.printf("*");
-			if(!(cntr % 640)) Serial.printf("\n");
-
-#endif
-			br = dioMB.read(&src, buffer, sizeof(buffer));  // Read buffer size of source file.
- 			if (br <= 0) break; // Error or EOF
-
-			bw = dioMB.write(&dest, buffer, br); // Write br bytes to the destination file.
- 			if (bw < br) break; // Error or disk is full
-
-			bytesRW += (uint32_t)bw;
-		}
-		dioMB.fflush(&dest); // Flush write buffer.
-
-		// Close open files
-		dioMB.close(&src);
-		dioMB.close(&dest);
-
-		if((br < 0) || (bw < br)) {
+	} else {
+		if(!dioMB.lfsOpen(&lfsDest, (char *)pParam[1], FILE_WRITE_BEGIN)) {
 			ErrorDir(F("cp"));
 			return;
 		}
-			
-		finish = (micros() - start); // Get total copy time.
-		float MegaBytes = (bytesRW*1.0f)/(1.0f*finish);
+	}
+	/* Copy source to destination */
+	start = micros();
+	for (;;) {
 #if 1
-		Serial.printf("\nCopied %u bytes in %f seconds. Speed: %f MB/s\n",
-						bytesRW,(1.0*finish)/1000000.0,MegaBytes);
+		cntr++;
+		if(!(cntr % 10)) Serial.printf("*");
+		if(!(cntr % 640)) Serial.printf("\n");
+
+#endif
+		// Read source file.
+		if(srcType == PFSFILE_TYPE)  {
+			br = dioMB.read(&src, buffer, sizeof(buffer));  // Read buffer size of source file.
+			if (br <= 0) break; // Error or EOF
+		} else {
+			br = dioMB.lfsRead(&lfsSrc, buffer, sizeof(buffer));  // Read buffer size of source file.
+			if (br <= 0) break; // Error or EOF
+		}
+		// Write destination file.
+		if(destType == PFSFILE_TYPE)  {
+			bw = dioMB.write(&dest, buffer, br); // Write br bytes to the destination file.
+			if (bw < br) {
+				break; // Error or disk is full
+			}
+		} else {
+			bw = dioMB.lfsWrite(&lfsDest, buffer, br); // Write br bytes to the destination file.
+			if (bw < br) {
+				break; // Error or disk is full
+			}
+		}
+		bytesRW += (uint32_t)bw;
+	}
+	// Flush destination file.
+	if(destType == PFSFILE_TYPE)  {
+		dioMB.fflush(&dest); // Flush write buffer.
+	} else {
+		dioMB.fflush(&lfsDest); // Flush write buffer.
+	}
+	// Close open files
+	if(srcType == PFSFILE_TYPE)  {
+		dioMB.close(&src);
+	} else {
+		dioMB.lfsClose(&lfsSrc);
+	}
+	if(destType == PFSFILE_TYPE)  {
+		dioMB.close(&dest);
+	} else {
+		dioMB.lfsClose(&lfsDest);
+	}
+	// Proccess posible errors.
+	if(br < 0) {
+		dioMB.setError(READ_ERROR);
+		ErrorDir(F("cp"));
+		return;
+	} else if(bw < br) {
+		dioMB.setError(WRITE_ERROR); // Can also be disk full error.
+		ErrorDir(F("cp"));
+		return;
+	}
+	finish = (micros() - start); // Get total copy time.
+	float MegaBytes = (bytesRW*1.0f)/(1.0f*finish);
+#if 1
+	Serial.printf("\nCopied %u bytes in %f seconds. Speed: %f MB/s\n",
+					bytesRW,(1.0*finish)/1000000.0,MegaBytes);
 #endif
 	return;
 }
@@ -1125,6 +1234,11 @@ void microBox::SaveParCB(char **pParam, uint8_t parCnt)
 void microBox::clearCB(char** pParam, uint8_t parCnt)
 {
     microbox.clear(pParam, parCnt);
+}
+
+void microBox::helpCB(char** pParam, uint8_t parCnt)
+{
+    microbox.help(pParam, parCnt);
 }
 
 void microBox::mkdirCB(char** pParam, uint8_t parCnt)
