@@ -19,4 +19,11 @@ The objectives are:
 - Properly process hot plugging.
 - Keep all of this compatible with SD and FS.
 
+Examples:
+- DiskIOTesting.ino: A simple test of some Diskio functions.
+- DiskIOMB.ino: A simple cli for testing most diskIO functions and demonstrating unified access to different types of mass stroage devices on the Teensy.
+
+DiskIOMB is partialy modified version of microBox found here:
+http://sebastian-duell.de/en/microbox/index.html
+
 So far most of this is working well but still needs a lot more work. Really don't know if this is something that might be useful but it is fun to play with:)
