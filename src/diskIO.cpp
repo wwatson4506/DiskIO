@@ -570,10 +570,10 @@ bool diskIO::processPathSpec(char *path) {
 		mp[ldNum].chvol(); // Change to the new logical drive.
 	}
 	// Get current path spec and add '/' + given path spec to it.
-	if(strlen(path) != 1) // Check for single '/'.
+//	if(strlen(path) != 1) // Check for single '/'.
 		sprintf(tempPath, "%s/%s", drvIdx[currDrv].currentPath, path);
-	else // Just use exsisting path spec.
-		strcpy(tempPath,path);
+//	else // Just use exsisting path spec.
+//		strcpy(tempPath,path);
 	// Check for '.', '..', '../'.
 	if(!parsePathSpec(tempPath)) {
 		setError(INVALID_PATH_NAME);
@@ -938,16 +938,17 @@ bool diskIO::chdir(char *dirPath) {
 	char path[256];
 
 	strcpy(path,dirPath); // Isolate original path pointer from changes below.
-
-	// Check for a logical drive change.
-	if(changeDrive(path) < 0 && mscError != DISKIO_PASS) {
-		return false;
+	// Check if we are changing to the root directory.
+	if((strlen(path) == 1) && (path[0] == '/')) { // Yes, 
+		strcpy(drvIdx[currDrv].currentPath, ""); // clear currentPath.
+		strcpy(tempPath, "/"); // Setup tempPath for root directory.
+	} else { // No,
+		strcpy(tempPath,path); // Setup tempPath with given path spec.
+		// And check for a logical drive change.
+		if(changeDrive(path) < 0 && mscError != DISKIO_PASS) return false;
 	}
 	// Get current path spec and add '/' + given path spec to it.
-	if(strlen(path) != 1)
 		sprintf(tempPath, "%s/%s", drvIdx[currDrv].currentPath, path);
-	else
-    strcpy(tempPath,path);
 	// Check for ".", ".." and "../"
 	if(!parsePathSpec(tempPath)) {
 		setError(INVALID_PATH_NAME);
