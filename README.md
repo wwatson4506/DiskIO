@@ -4,6 +4,8 @@ This is a repository that uses and tests UsbMscFat-FS_DATES (KurtE's branch) on 
 KurtE's UsbMscFat-FS_DATES:
 https://github.com/KurtE/UsbMscFat/tree/FS_DATES
 
+Built using Arduino 1.8.15 and Teensyduino 1.54 release version.
+
 The main goal is to be able to unify all of the different access methods of USBFat, SdFat and LittleFs into one. LittleFS has been a bit of a challenge but is working. So far just QPINAND has beeen tested. I want to add the rest of the LittleFS devices later. 
 
 This is work in progress and is strictly experimentation and/or proof of concept. 
@@ -23,9 +25,9 @@ Examples:
 - DiskIOTesting.ino: A simple test of some Diskio functions.
 - DiskIOMB.ino: A simple cli for testing most diskIO functions and demonstrating unified access to different types of Mass Storage devices on the Teensy. (SdFat, UsbFat and LittleFS).
 
-DiskIOMB is a partialy modified version of microBox found here:
+DiskIOMB is a partialy modified version of microBox for testing found here:
 http://sebastian-duell.de/en/microbox/index.html
 
-In DiskIOMB type help at the command line to see the commands I modified and commands I added for use with Teensy.
+In DiskIOMB type help at the command line to see the commands that were modified and commands that were added for use with Teensy.
 
 So far most of this is working well but still needs a lot more work. Really don't know if this is something that might be useful but it is fun to play with:)
