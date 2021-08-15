@@ -1,5 +1,5 @@
 # DiskIO
-This is a repository that uses and tests UsbMscFat-FS_DATES (KurtE's branch) on the T3.6/T4.0/T4.1 and MM.
+This is a repository that uses and tests UsbMscFat-FS_DATES (KurtE's branch) on the T3.6/T4.0/T4.1. MicroMod has not beeen tested yet.
 
 KurtE's UsbMscFat-FS_DATES:
 https://github.com/KurtE/UsbMscFat/tree/FS_DATES
