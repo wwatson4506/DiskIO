@@ -4,17 +4,17 @@ This is a repository that uses and tests UsbMscFat-FS_DATES (KurtE's branch) on 
 KurtE's UsbMscFat-FS_DATES:
 https://github.com/KurtE/UsbMscFat/tree/FS_DATES
 
-The main goal is to be able to unify all of the different access methods to USBFat, SdFat and LittleFs into one. What has not been done yet is LittleFs. That will probably be a challenge.
+The main goal is to be able to unify all of the different access methods of USBFat, SdFat and LittleFs into one. LittleFS has been a bit of a challenge but is working. So far just QPINAND has beeen tested. I want to add the rest of the LittleFS devices later. 
 
 This is work in progress and is strictly experimentation and/or proof of concept. 
 
 The objectives are:
 
-- Support up to 4 USB Mass Storage device, the native SDIO SD card and a SPI SD card.
-- Allow for 4 partitions per Mass Storage device. Total of 24 logical drives.
-- Use a volume name for access to each logical drive or use an index number for array of mounted drives.
+- Support up to 4 USB Mass Storage devices, the native SDIO SD card and a SPI SD card and LittleFS devices.
+- Allow for 4 partitions per Mass Storage device. Total of 24 logical drives and all types of LittleFS devices.
+- Use a volume name for access to each logical drive or use an index number for array of mounted logical drives.
 - Be able to set a default drive (change drive).
-- Be able to parse a full path spec including relative path specs and wildcard processing.
+- Be able to parse a full path spec including drive spec, relative path specs and wildcard processing.
 - Use a more standard directory listing including time and dates stamps using the Teensy builtin RTC.
 - Properly process hot plugging.
 - Keep all of this compatible with SD and FS and LittleFS.
