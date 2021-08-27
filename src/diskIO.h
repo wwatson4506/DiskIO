@@ -133,7 +133,7 @@ public:
 	bool lsSubDir(void *dir);
 	bool lsFiles(void *dir, char *pattern, bool wc);
 	uint8_t getCDN(void);
-	uint8_t getOsType(char *path);
+	int getOsType(char *path);
 	char *cwd(void);
 	diskIO *dio() { return m_diskio; };
 private:

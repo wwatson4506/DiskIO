@@ -870,33 +870,40 @@ void microBox::Cat(char** pParam, uint8_t parCnt)
 	}	
 	strcpy(tempPath, pParam[0]); // Preserve path spec.
 	// Check which file system we are using LFS or PFsFile type.
-	if((dioMB.getOsType(tempPath) == FILE_TYPE))  {
+	int fileType = dioMB.getOsType(tempPath);
+	if(fileType < 0) {
+		ErrorDir(F("cat"));
+		return;
+	}
+
+	// Check which file system we are using LFS or PFsFile type.
+	if((fileType == FILE_TYPE))  {
 		if(!dioMB.lfsExists(tempPath)) {
 			ErrorDir(F("cat"));
 			return;
 		}
 	} else {
 		if(!dioMB.exists(tempPath)) {
+			
 			ErrorDir(F("cat"));
 			return;
 		}
 	}
-	// Check which file system we are using LFS or PFsFile type.
-	if((dioMB.getOsType(tempPath) == FILE_TYPE))  {
+	// Open the file to list (LFS type).
+	if(fileType == FILE_TYPE)  {
 		if(!dioMB.lfsOpen(&lfsfl, (char *)tempPath, O_RDONLY)) {
 			ErrorDir(F("cat"));
 			return;
 		}
 		for(;;) {
 			br = dioMB.lfsRead(&lfsfl, buff, sizeof(buff));
-			if (br <= 0) return; // Error
+			// If last read size is less than the buffer size, terminate the string
+			// at actual size.
+			if((char)br < sizeof(buff)) buff[br] = 0;
 			Serial.printf("%s",buff);
+			if (br <= 0) break; // EOF reached.
 		}
-		if(br < 0) {
-			ErrorDir(F("cat"));
-			return;
-		}
-		if(!dioMB.lfsClose(&lfsfl)) {
+		if(!dioMB.lfsClose(&lfsfl)) { // Always returns true with LFS.
 			ErrorDir(F("cat"));
 			return;
 		}
@@ -907,7 +914,7 @@ void microBox::Cat(char** pParam, uint8_t parCnt)
 		}
 		for(;;) {
 			br = mscfl.fgets(buff, sizeof(buff));
-			if (br <= 0) return; // Error
+			if (br <= 0) break; // Error
 			Serial.printf("%s",buff);
 		}
 		if(br < 0) {
