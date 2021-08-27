@@ -25,7 +25,7 @@ Examples:
 - DiskIOTesting.ino: A simple test of some Diskio functions.
 - DiskIOMB.ino: A simple cli for testing most diskIO functions and demonstrating unified access to different types of Mass Storage devices on the Teensy. (SdFat, UsbFat and LittleFS). Being able to add commands so easly is really helpfull for debugging.
 - Hot plugging now supports unplugging the default device and switching to the next available device. This is not recommended if the device is in use.
-DiskIOMB is a partialy modified version of microBox for testing found here:
+- DiskIOMB is a partialy modified version of microBox for testing found here:
 http://sebastian-duell.de/en/microbox/index.html
 
 In DiskIOMB type help at the command line to see the commands that were modified and commands that were added for use with Teensy.
