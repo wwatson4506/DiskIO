@@ -1,8 +1,13 @@
 # DiskIO
 This is a repository that uses and tests UsbMscFat-FS_DATES (KurtE's branch) on the T3.6/T4.0/T4.1. MicroMod has not beeen tested yet.
 
-KurtE's UsbMscFat-FS_DATES:
+Required libraries:
+
+KurtE's UsbMscFat-FS_DATES
 https://github.com/KurtE/UsbMscFat/tree/FS_DATES
+
+FrankB's T4_PowerButton
+https://github.com/FrankBoesing/T4_PowerButton (T4.0/T4.1 freeMem functions)
 
 Built using Arduino 1.8.15 and Teensyduino 1.54 release version.
 
