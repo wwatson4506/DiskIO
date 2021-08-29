@@ -75,8 +75,8 @@ private:
     static void ListDrivesCB(char **pParam, uint8_t parCnt);
     static void ChangeDirCB(char **pParam, uint8_t parCnt);
     static void EchoCB(char **pParam, uint8_t parCnt);
-//    uint8_t Cat_int(char* pParam);
     static void CatCB(char** pParam, uint8_t parCnt);
+    static void PlayCB(char** pParam, uint8_t parCnt);
     static void watchCB(char** pParam, uint8_t parCnt);
     static void watchcsvCB(char** pParam, uint8_t parCnt);
     static void LoadParCB(char **pParam, uint8_t parCnt);
@@ -94,6 +94,7 @@ private:
     void ChangeDir(char **pParam, uint8_t parCnt);
     void Echo(char **pParam, uint8_t parCnt);
     void Cat(char** pParam, uint8_t parCnt);
+    void Play(char** pParam, uint8_t parCnt);
     void watch(char** pParam, uint8_t parCnt);
     void watchcsv(char** pParam, uint8_t parCnt);
     void clear(char** pParam, uint8_t parCnt);
@@ -114,6 +115,7 @@ private:
     int8_t GetParamIdx(char* pParam, bool partStr = false, int8_t startIdx = 0);
     int8_t GetCmdIdx(char* pCmd, int8_t startIdx = 0);
     uint8_t Cat_int(char* pParam);
+    uint8_t Play_int(char* pParam);
     uint8_t ParCmp(uint8_t idx1, uint8_t idx2, bool cmd=false);
     void HandleTab();
     void HistoryUp();

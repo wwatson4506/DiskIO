@@ -150,8 +150,9 @@ bool diskIO::init() {
 	}
 	processSDDrive(LOGICAL_DRIVE_SDIO);
 	ProcessSPISD(LOGICAL_DRIVE_SDSPI);
+#if defined(ARDUINO_TEENSY41)
 	ProcessLFS(LOGICAL_DRIVE_LFS);
-	
+#endif	
 	chdir((char *)"0:");
 	currDrv = 0;	      // Set default drive to 0
 	mscError = 0;		  // Clear errors
@@ -171,7 +172,6 @@ bool diskIO::isConnected(uint8_t deviceNumber) {
 #ifdef TalkToMe
   Serial.printf("isConnected(%d)...\r\n", deviceNumber);
 #endif
-	char num[33];
 	//TODO: SDIO and SPI SD cards.
 	// Only USB devices checked at this time.
 	// Invalidate any partitions for device (MSC drives).
@@ -200,10 +200,7 @@ bool diskIO::isConnected(uint8_t deviceNumber) {
 				currDrv = i;
 				mp[i].chvol();     // Change the volume to this logical drive.
 				sprintf(drvIdx[currDrv].fullPath,"/%s%s",drvIdx[currDrv].name, drvIdx[currDrv].currentPath);
-//				chdir((char *)strcat(itoa(i,num,10),":"));
-//				chdir((char *)"/");
 				break;
-//				return true;
 			}
 		}
 		return false;
@@ -322,6 +319,7 @@ void diskIO::ProcessSPISD(uint8_t drive_number) {
   while((count_mp % SLOT_OFFSET)) count_mp++;
 }
 
+#if defined(ARDUINO_TEENSY41)
 // --------------------------------------
 // Mount LFS device if possible.
 // (KurtE).
@@ -333,9 +331,6 @@ void diskIO::ProcessLFS(uint8_t drive_number) {
   // TODO: Proccess all other possible LFS devices.
   // Only QPINAND tested at this time.
   uint8_t slot = drive_number * SLOT_OFFSET;
-//  pinMode(QPINAND_CS, OUTPUT);
-//  digitalWrite(QPINAND_CS, HIGH);
-
   if (!myfs.begin()) {
 	Serial.printf("Error starting %s\n", memDrvName);
 	return;
@@ -350,7 +345,7 @@ void diskIO::ProcessLFS(uint8_t drive_number) {
       drvIdx[slot].valid = true;
 
 }
-
+#endif
 //--------------------------------------------------
 // Return number of volumes found and mounted.
 //--------------------------------------------------
@@ -398,9 +393,11 @@ void diskIO::listAvailableDrives(print_t* p) {
 			case SD_CARD_TYPE_USB:
 				p->printf(F("Drive Type: USB\r\n"));
 				break;
+#if defined(ARDUINO_TEENSY41)
 			case LFS_TYPE:
 				p->printf(F("Drive Type: LFS\r\n"));
 				break;
+#endif
 			default:
 				p->printf(F("Unknown\r\n"));
 		}
@@ -579,10 +576,7 @@ bool diskIO::processPathSpec(char *path) {
 		mp[ldNum].chvol(); // Change to the new logical drive.
 	}
 	// Get current path spec and add '/' + given path spec to it.
-//	if(strlen(path) != 1) // Check for single '/'.
 		sprintf(tempPath, "%s/%s", drvIdx[currDrv].currentPath, path);
-//	else // Just use exsisting path spec.
-//		strcpy(tempPath,path);
 	// Check for '.', '..', '../'.
 	if(!parsePathSpec(tempPath)) {
 		setError(INVALID_PATH_NAME);
@@ -792,11 +786,12 @@ bool diskIO::lsDir(char *dirPath) {
 		Serial.printf(F("Full Path: %s\r\n"), dirPath);
 	// wildcards = true if any wildcards used else false.
 	wildcards = getWildCard((char *)savePath,pattern);  
+
+#if defined(ARDUINO_TEENSY41)
 	// First check if we are using a LFS device.
 	if(drvIdx[currDrv].osType == FILE_TYPE) {
 		if(!(lfsDir = myfs.open(savePath))) {
 			setError(INVALID_PATH_NAME);
-//			goto failed;  // Invalid path name.
 			return false;
 		}
 		// If wildcards given just list files that match (no sub directories) else
@@ -810,11 +805,13 @@ bool diskIO::lsDir(char *dirPath) {
 		lfsDir.close();		// Done. Close directory base file.
 		// Show free space left on this device.
 		Serial.printf("\r\nFree Space: %llu bytes\r\n\r\n",myfs.totalSize()-myfs.usedSize());
-	} else { // Using a SD, SDIO, MSC device.
-		// Try to open the directory.
+	}
+#endif
+	// Using a SD, SDIO, MSC device.
+	// Try to open the directory.
+	if(drvIdx[currDrv].osType == PFSFILE_TYPE) {
 		if(!dir.open(savePath)) {
 			setError(INVALID_PATH_NAME);
-//			goto failed;  // Invalid path name.
 			return false;
 		}
 		// If wildcards given just list files that match (no sub directories) else
@@ -834,9 +831,7 @@ bool diskIO::lsDir(char *dirPath) {
 		mp[drive].chvol();  // Change back to original logical drive. If changed.
 		currDrv = drive;    // Ditto with the drive index.
 	}
-//	if(mscError == DISKIO_PASS)
-		return true;
-//	return false;
+	return true;
 }
 
 // List directories only.
@@ -847,6 +842,7 @@ bool diskIO::lsSubDir(void *dir) {
 	bool rsltOpen;   // file open status
 	char fname[MAX_FILENAME_LEN];
 
+#if defined(ARDUINO_TEENSY41)
 	if(drvIdx[currDrv].osType == FILE_TYPE) {
 		File lfsDirEntry; // LittleFS.
 		File *lfsDir = reinterpret_cast < File * > ( dir );
@@ -859,23 +855,26 @@ bool diskIO::lsSubDir(void *dir) {
 				Serial.printf(F("<DIR>\r\n"));
 			}
 		}
-			lfsDirEntry.close(); // Done. Close sub-entry file.
-		} else { // SD, SDIO, MSC device.
-			PFsFile dirEntry;
-			PFsFile *Dir = reinterpret_cast < PFsFile * > ( dir );
-			Dir->rewind(); // Start at beginning of directory.
-			// Find next available object to display in the specified directory.
-			while ((rsltOpen = dirEntry.openNext(Dir, O_RDONLY))) {
-				if (dirEntry.getName(fname, sizeof(fname))) { // Get the filename.
-					if(dirEntry.isSubDir()) { // Only list sub directories.
-						Serial.printf(F("%s/"),fname); // Display SubDir filename + '/'.
-						for(uint8_t i = 0; i <= (45-strlen(fname)); i++) Serial.print(" ");
-						Serial.printf(F("<DIR>\r\n"));
-					}
+		lfsDirEntry.close(); // Done. Close sub-entry file.
+	}
+#endif
+	// SD, SDIO, MSC device.
+	if(drvIdx[currDrv].osType == PFSFILE_TYPE) {
+		PFsFile dirEntry;
+		PFsFile *Dir = reinterpret_cast < PFsFile * > ( dir );
+		Dir->rewind(); // Start at beginning of directory.
+		// Find next available object to display in the specified directory.
+		while ((rsltOpen = dirEntry.openNext(Dir, O_RDONLY))) {
+			if (dirEntry.getName(fname, sizeof(fname))) { // Get the filename.
+				if(dirEntry.isSubDir()) { // Only list sub directories.
+					Serial.printf(F("%s/"),fname); // Display SubDir filename + '/'.
+					for(uint8_t i = 0; i <= (45-strlen(fname)); i++) Serial.print(" ");
+					Serial.printf(F("<DIR>\r\n"));
 				}
 			}
-			dirEntry.close(); // Done. Close sub-entry file.
 		}
+		dirEntry.close(); // Done. Close sub-entry file.
+	}
 	return true;
 }
 
@@ -889,6 +888,7 @@ bool diskIO::lsFiles(void *dir, char *pattern, bool wc) {
 	bool rsltOpen;         // file open status
 	char fname[MAX_FILENAME_LEN];
 
+#if defined(ARDUINO_TEENSY41)
 	if(drvIdx[currDrv].osType == FILE_TYPE) {
 		File lfsDirEntry; // LittleFS.
 		File *lfsDir = reinterpret_cast < File * > ( dir );
@@ -909,7 +909,10 @@ bool diskIO::lsFiles(void *dir, char *pattern, bool wc) {
 			}
 		}
 		lfsDirEntry.close(); // Done. Close sub-entry file.
-	} else { // SD, SDIO, MSC device.
+	}
+#endif
+	// SD, SDIO, MSC device.
+	if(drvIdx[currDrv].osType == PFSFILE_TYPE) {
 		PFsFile dirEntry;
 		PFsFile *Dir = reinterpret_cast < PFsFile * > ( dir );
 		Dir->rewind(); // Start at beginning of directory.
@@ -931,7 +934,7 @@ bool diskIO::lsFiles(void *dir, char *pattern, bool wc) {
 									tx.tm_hour,tx.tm_min,tx.tm_sec);
 				}
 			}
-		dirEntry.close(); // Done. Close sub-entry file.
+			dirEntry.close(); // Done. Close sub-entry file.
 		}
 	}
 	return true;
@@ -967,18 +970,21 @@ bool diskIO::chdir(char *dirPath) {
 		setError(INVALID_PATH_NAME);
 		return false; // Invalid path spec.
 	}
+#if defined(ARDUINO_TEENSY41)
 	// LittleFS does not have a chdir() function so we just test for the
 	// existence of the sub directory. If it is there then we add it to 
 	// the current path and 'currentPath' will act as a cwd().
 	// If not found return false. 
-	if(drvIdx[currDrv].ifaceType == LFS_TYPE) {
+	if(drvIdx[currDrv].osType == FILE_TYPE) {
 		if(!myfs.exists(tempPath)) {
 			setError(PATH_NOT_EXIST);
 			return false;
 		}
 		sprintf(drvIdx[currDrv].currentPath, "%s", tempPath);
 		return true;
-	} else {
+	}
+#endif
+	if(drvIdx[currDrv].osType == PFSFILE_TYPE) {
 		if(mp[currDrv].chdir((const char *)tempPath)) {
 			sprintf(drvIdx[currDrv].currentPath, "%s", tempPath);
 			return true;
@@ -1004,10 +1010,14 @@ bool diskIO::mkdir(char *path) {
 	strcpy(savePath,path);
 	// Process path spec.  Return false if failed (-1).
 	if(processPathSpec(savePath)) {
+#if defined(ARDUINO_TEENSY41)
 		// First check if we are using a LFS device.
-		if(drvIdx[currDrv].ifaceType == LFS_TYPE) {
+		if(drvIdx[currDrv].osType == FILE_TYPE) {
 			if(!myfs.mkdir(savePath)) setError(MKDIR_ERROR);
-		} else { // Sd,SDIO or MSC
+		}
+#endif
+		// Sd,SDIO or MSC
+		if(drvIdx[currDrv].osType == PFSFILE_TYPE) {
 			if(!mp[currDrv].mkdir(savePath, true)) setError(MKDIR_ERROR);
 		}
 	}
@@ -1034,10 +1044,14 @@ bool diskIO::rm(char *dirPath) {
 	strcpy(savePath,dirPath);
 	// Process path spec.  Return false if failed (-1).
 	if(processPathSpec(savePath)) {
+#if defined(ARDUINO_TEENSY41)
 		// First check if we are using a LFS device.
 		if(drvIdx[currDrv].ifaceType == LFS_TYPE) {
 			if(!myfs.remove(savePath)) setError(RM_ERROR);
-		} else { // Sd,SDIO or MSC
+		}
+#endif
+		// Sd,SDIO or MSC
+		if(drvIdx[currDrv].osType == PFSFILE_TYPE) {
 			if(!mp[currDrv].remove(savePath)) setError(RM_ERROR);
 		}
 	}
@@ -1064,10 +1078,15 @@ bool diskIO::rmdir(char *dirPath) {
 	strcpy(savePath,dirPath);
 	// Process path spec.  Return false if failed (-1).
 	if(processPathSpec(savePath)) {
+
+#if defined(ARDUINO_TEENSY41)
 		// First check if we are using a LFS device.
 		if(drvIdx[currDrv].ifaceType == LFS_TYPE) {
 			if(!myfs.rmdir(savePath)) setError(RMDIR_ERROR);
-		} else { // Sd,SDIO or MSC
+		}
+#endif
+		// Sd,SDIO or MSC
+		if(drvIdx[currDrv].ifaceType == PFSFILE_TYPE) {
 			if(!mp[currDrv].rmdir(savePath)) setError(RMDIR_ERROR);
 		}
 	}
@@ -1080,6 +1099,7 @@ bool diskIO::rmdir(char *dirPath) {
 	return false;
 }
 
+#if defined(ARDUINO_TEENSY41)
 //---------------------------------------------------------------------------
 // Test for existance of file or directory. (LFS)
 // Will fail if directory/file does not exist or is an invald path spec.
@@ -1107,69 +1127,6 @@ bool diskIO::lfsExists(char *dirPath) {
 		currDrv = drive;    // Ditto with the drive index.
 	}
 	return rslt;
-}
-
-//---------------------------------------------------------------------------
-// Test for existance of file or directory.
-// Will fail if directory/file does not exist or is an invald path spec.
-//---------------------------------------------------------------------------
-bool diskIO::exists(char *dirPath) {
-	setError(DISKIO_PASS); // Clear any existing error codes.
-	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
-	bool rslt = false;
-	char savePath[256];
-	savePath[0] = 0;
-
-    // Preserve original path spec. Should only change if chdir() is used.	
-	strcpy(savePath,dirPath);
-	// Process path spec.  Return false if failed (-1).
-	if(!processPathSpec(savePath)) return false;
-	
-	if(!(rslt = mp[currDrv].exists(savePath))) {
-		setError(PATH_NOT_EXIST);
-	} else {
-		setError(PATH_EXISTS);
-	}
-
-	if(currDrv != drive) {
-		mp[drive].chvol();  // Change back to original logical drive. If changed.
-		currDrv = drive;    // Ditto with the drive index.
-	}
-	return rslt;
-}
-
-//---------------------------------------------------------------------------
-// Rename file or directory.
-// Will fail if directory/file does not exist or is an invald path spec.
-//---------------------------------------------------------------------------
-bool diskIO::rename(char *oldpath, char *newpath) {
-#ifdef TalkToMe
-	Serial.printf(F("rename()\r\n"));
-#endif
-	char savePath[256];
-	savePath[0] = 0;
-	setError(DISKIO_PASS); // Clear any existing error codes.
-	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
-
-    // Preserve original path spec. Should only change if chdir() is used.	
-	strcpy(savePath,oldpath);
-
-	// Process path spec.  Return false if failed (-1).
-	if(processPathSpec(savePath)) {
-		// First check if we are using a LFS device.
-		if(drvIdx[currDrv].ifaceType == LFS_TYPE) {
-			if(!myfs.rename(savePath, newpath))	setError(RENAME_ERROR);
-		} else { // Sd,SDIO or MSC
-			if(!mp[currDrv].rename(savePath, newpath)) setError(RENAME_ERROR);
-		}
-	}
-	if(currDrv != drive) {
-		mp[drive].chvol();  // Change back to original logical drive. If changed.
-		currDrv = drive;    // Ditto with the drive index.
-	}
-	if(mscError == DISKIO_PASS)
-		return true;
-	return false;
 }
 
 //---------------------------------------------------------------------------
@@ -1209,41 +1166,6 @@ bool diskIO::lfsOpen(void *fp, char* dirPath, oflag_t oflag) {
 }
 
 //---------------------------------------------------------------------------
-// Open file or directory.
-//---------------------------------------------------------------------------
-bool diskIO::open(void *fp, char* dirPath, oflag_t oflag) {
-#ifdef TalkToMe
-	Serial.printf(F("open()\r\n"));
-#endif
-	setError(DISKIO_PASS); // Clear any existing error codes.
-	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
- 
-    // Preserve original path spec. Should only change if chdir() is used.	
-	char savePath[256] = {""};
-	strcpy(savePath,dirPath);
-
-	// Process path spec.  Return false if failed (-1).
-	if(!processPathSpec(savePath)) return false;
-	// Check for missing path name.
-	if((savePath[0] = '/') && (strlen(savePath) == 1)) {
-		setError(INVALID_PATH_NAME);
-	} else {
-		// Setup PFsFile file pointer. 
-		PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
-		if(!Fp->open(&mp[currDrv], savePath, oflag)) {
-			setError(OPEN_FAILED);
-		}
-	}
-	if(currDrv != drive) {
-		mp[drive].chvol();  // Change back to original logical drive. If changed.
-		currDrv = drive;    // Ditto with the drive index.
-	}
-	if(mscError == DISKIO_PASS)
-		return true;
-	return false;
-}
-
-//---------------------------------------------------------------------------
 // close file or directory. (LFS)
 //---------------------------------------------------------------------------
 bool diskIO::lfsClose(void *fp) {
@@ -1253,22 +1175,6 @@ bool diskIO::lfsClose(void *fp) {
 	setError(DISKIO_PASS); // Clear any existing error codes.
 	File *Fp = reinterpret_cast < File * > ( fp ); 
 	Fp->close(); // Does not return results !!!
-	return true;
-}
-
-//---------------------------------------------------------------------------
-// close file or directory.
-//---------------------------------------------------------------------------
-bool diskIO::close(void *fp) {
-#ifdef TalkToMe
-	Serial.printf("close()\r\n");
-#endif
-	setError(DISKIO_PASS); // Clear any existing error codes.
-		PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp ); 
-		if(!Fp->close()) {
-			setError(CLOSE_FAILED);
-			return false;
-		}
 	return true;
 }
 
@@ -1286,25 +1192,6 @@ int diskIO::lfsRead(void *fp, void *buf, size_t count) {
 }
 
 //---------------------------------------------------------------------------
-// Read from an open file.
-//---------------------------------------------------------------------------
-int diskIO::read(void *fp, void *buf, size_t count) {
-#ifdef TalkToMe
-	Serial.printf("read()\r\n");
-#endif
-	int br = 0;
-
-	setError(DISKIO_PASS); // Clear any existing error codes.
-	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
-	br = Fp->read(buf, count);
-	if(br <= 0) {
-		setError(READ_ERROR);
-		return br;
-	}
-	return br;
-}
-
-//---------------------------------------------------------------------------
 // Write to an open file. (LFS)
 //---------------------------------------------------------------------------
 size_t diskIO::lfsWrite(void *fp, void *buf, size_t count) {
@@ -1315,25 +1202,6 @@ size_t diskIO::lfsWrite(void *fp, void *buf, size_t count) {
 
 	setError(DISKIO_PASS); // Clear any existing error codes.
 	File *Fp = reinterpret_cast < File * > ( fp );
-	bw = Fp->write(buf, count);
-	if(bw != (int)count) {
-		setError(WRITE_ERROR);
-		return bw;
-	}
-	return bw;
-}
-
-//---------------------------------------------------------------------------
-// Write to an open file.
-//---------------------------------------------------------------------------
-size_t diskIO::write(void *fp, void *buf, size_t count) {
-#ifdef TalkToMe
-	Serial.printf("write()\r\n");
-#endif
-	int bw = 0;
-
-	setError(DISKIO_PASS); // Clear any existing error codes.
-	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
 	bw = Fp->write(buf, count);
 	if(bw != (int)count) {
 		setError(WRITE_ERROR);
@@ -1383,6 +1251,187 @@ bool diskIO::lfsLseek(void *fp, off_t offset, int whence) {
 }
 
 //---------------------------------------------------------------------------
+// Flush an open file. Sync all un-written data to an open file. (LFS)
+//---------------------------------------------------------------------------
+void diskIO::lfsFflush(void *fp) {
+	File *Fp = reinterpret_cast < File * > ( fp );
+	Fp->flush();
+}
+
+//---------------------------------------------------------------------------
+// Return current file position. (LFS)
+//---------------------------------------------------------------------------
+int64_t diskIO::lfsFtell(void *fp) {
+	setError(DISKIO_PASS); // Clear any existing error codes.
+	File *Fp = reinterpret_cast < File * > ( fp );
+	uint64_t filePos = 0;
+	filePos = Fp->position();
+	if(filePos < 0 ) {
+		setError(FTELL_ERROR);
+		return -1;
+	}
+    return filePos;
+}
+
+#endif // LFS functions
+
+//---------------------------------------------------------------------------
+// Test for existance of file or directory.
+// Will fail if directory/file does not exist or is an invald path spec.
+//---------------------------------------------------------------------------
+bool diskIO::exists(char *dirPath) {
+	setError(DISKIO_PASS); // Clear any existing error codes.
+	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
+	bool rslt = false;
+	char savePath[256];
+	savePath[0] = 0;
+
+    // Preserve original path spec. Should only change if chdir() is used.	
+	strcpy(savePath,dirPath);
+	// Process path spec.  Return false if failed (-1).
+	if(!processPathSpec(savePath)) return false;
+	
+	if(!(rslt = mp[currDrv].exists(savePath))) {
+		setError(PATH_NOT_EXIST);
+	} else {
+		setError(PATH_EXISTS);
+	}
+
+	if(currDrv != drive) {
+		mp[drive].chvol();  // Change back to original logical drive. If changed.
+		currDrv = drive;    // Ditto with the drive index.
+	}
+	return rslt;
+}
+
+//---------------------------------------------------------------------------
+// Rename file or directory.
+// Will fail if directory/file does not exist or is an invald path spec.
+//---------------------------------------------------------------------------
+bool diskIO::rename(char *oldpath, char *newpath) {
+#ifdef TalkToMe
+	Serial.printf(F("rename()\r\n"));
+#endif
+	char savePath[256];
+	savePath[0] = 0;
+	setError(DISKIO_PASS); // Clear any existing error codes.
+	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
+
+    // Preserve original path spec. Should only change if chdir() is used.	
+	strcpy(savePath,oldpath);
+
+	// Process path spec.  Return false if failed (-1).
+	if(processPathSpec(savePath)) {
+		// First check if we are using a LFS device.
+#if defined(ARDUINO_TEENSY41)
+		if(drvIdx[currDrv].osType == FILE_TYPE) {
+			if(!myfs.rename(savePath, newpath))	setError(RENAME_ERROR);
+		}
+#endif
+		// Sd,SDIO or MSC
+		if(drvIdx[currDrv].osType == PFSFILE_TYPE) {
+			if(!mp[currDrv].rename(savePath, newpath)) setError(RENAME_ERROR);
+		}
+	}
+	if(currDrv != drive) {
+		mp[drive].chvol();  // Change back to original logical drive. If changed.
+		currDrv = drive;    // Ditto with the drive index.
+	}
+	if(mscError == DISKIO_PASS)
+		return true;
+	return false;
+}
+
+//---------------------------------------------------------------------------
+// Open file or directory.
+//---------------------------------------------------------------------------
+bool diskIO::open(void *fp, char* dirPath, oflag_t oflag) {
+#ifdef TalkToMe
+	Serial.printf(F("open()\r\n"));
+#endif
+	setError(DISKIO_PASS); // Clear any existing error codes.
+	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
+ 
+    // Preserve original path spec. Should only change if chdir() is used.	
+	char savePath[256] = {""};
+	strcpy(savePath,dirPath);
+
+	// Process path spec.  Return false if failed (-1).
+	if(!processPathSpec(savePath)) return false;
+	// Check for missing path name.
+	if((savePath[0] = '/') && (strlen(savePath) == 1)) {
+		setError(INVALID_PATH_NAME);
+	} else {
+		// Setup PFsFile file pointer. 
+		PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
+		if(!Fp->open(&mp[currDrv], savePath, oflag)) {
+			setError(OPEN_FAILED);
+		}
+	}
+	if(currDrv != drive) {
+		mp[drive].chvol();  // Change back to original logical drive. If changed.
+		currDrv = drive;    // Ditto with the drive index.
+	}
+	if(mscError == DISKIO_PASS)
+		return true;
+	return false;
+}
+
+//---------------------------------------------------------------------------
+// close file or directory.
+//---------------------------------------------------------------------------
+bool diskIO::close(void *fp) {
+#ifdef TalkToMe
+	Serial.printf("close()\r\n");
+#endif
+	setError(DISKIO_PASS); // Clear any existing error codes.
+		PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp ); 
+		if(!Fp->close()) {
+			setError(CLOSE_FAILED);
+			return false;
+		}
+	return true;
+}
+
+//---------------------------------------------------------------------------
+// Read from an open file.
+//---------------------------------------------------------------------------
+int diskIO::read(void *fp, void *buf, size_t count) {
+#ifdef TalkToMe
+	Serial.printf("read()\r\n");
+#endif
+	int br = 0;
+
+	setError(DISKIO_PASS); // Clear any existing error codes.
+	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
+	br = Fp->read(buf, count);
+	if(br <= 0) {
+		setError(READ_ERROR);
+		return br;
+	}
+	return br;
+}
+
+//---------------------------------------------------------------------------
+// Write to an open file.
+//---------------------------------------------------------------------------
+size_t diskIO::write(void *fp, void *buf, size_t count) {
+#ifdef TalkToMe
+	Serial.printf("write()\r\n");
+#endif
+	int bw = 0;
+
+	setError(DISKIO_PASS); // Clear any existing error codes.
+	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
+	bw = Fp->write(buf, count);
+	if(bw != (int)count) {
+		setError(WRITE_ERROR);
+		return bw;
+	}
+	return bw;
+}
+
+//---------------------------------------------------------------------------
 // Seek to an offset in an open file.
 //---------------------------------------------------------------------------
 off_t diskIO::lseek(void *fp, off_t offset, int whence) {
@@ -1417,34 +1466,11 @@ off_t diskIO::lseek(void *fp, off_t offset, int whence) {
 }
 
 //---------------------------------------------------------------------------
-// Flush an open file. Sync all un-written data to an open file. (LFS)
-//---------------------------------------------------------------------------
-void diskIO::lfsFflush(void *fp) {
-	File *Fp = reinterpret_cast < File * > ( fp );
-	Fp->flush();
-}
-
-//---------------------------------------------------------------------------
 // Flush an open file. Sync all un-written data to an open file.
 //---------------------------------------------------------------------------
 void diskIO::fflush(void *fp) {
 	PFsFile *Fp = reinterpret_cast < PFsFile * > ( fp );
 	Fp->flush();
-}
-
-//---------------------------------------------------------------------------
-// Return current file position. (LFS)
-//---------------------------------------------------------------------------
-int64_t diskIO::lfsFtell(void *fp) {
-	setError(DISKIO_PASS); // Clear any existing error codes.
-	File *Fp = reinterpret_cast < File * > ( fp );
-	uint64_t filePos = 0;
-	filePos = Fp->position();
-	if(filePos < 0 ) {
-		setError(FTELL_ERROR);
-		return -1;
-	}
-    return filePos;
 }
 
 //---------------------------------------------------------------------------

@@ -4,10 +4,17 @@
 #define diskIO_h
 #include <type_traits>
 #include "mscFS.h"
-#include "LittleFS.h"
+
+#if defined(ARDUINO_TEENSY41)
+#include "LittleFS.h" // T4.1 only
+#endif
 
 #define CNT_MSDRIVES 4
+#if defined(ARDUINO_TEENSY41)
 #define CNT_PARITIONS 32 
+#else
+#define CNT_PARITIONS 24
+#endif
 
 #define LOGICAL_DRIVE_SDIO  4
 #define LOGICAL_DRIVE_SDSPI 5
@@ -18,9 +25,11 @@
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
 #define SD_SPICONFIG SdioConfig(FIFO_SDIO)
 
+#if defined(ARDUINO_TEENSY41)
 // LFS Testing (Just QPINAND for now)
 #define QPINAND_CS 3
 const char memDrvName[] {"QPINAND"};
+#endif
 
 // Path spec defines.
 #define DIRECTORY_SEPARATOR "/"
@@ -31,11 +40,18 @@ const char memDrvName[] {"QPINAND"};
 #define USB_TYPE	0
 #define SDIO_TYPE	1
 #define SPI_TYPE	2
+
+#if defined(ARDUINO_TEENSY41)
 #define LFS_TYPE	5
+#endif
 
 // Types of OS
 #define PFSFILE_TYPE 0
+#if defined(ARDUINO_TEENSY41)
 #define FILE_TYPE    1
+#else
+#define FILE_TYPE    0
+#endif
 
 // Four partition slot per physical device
 #define SLOT_OFFSET 4
@@ -100,23 +116,24 @@ public:
 	bool rmdir(char *dirPath);
 	bool rm(char *dirPath);
 	bool exists(char *dirPath);
-	bool lfsExists(char *dirPath);
 	bool rename(char *oldpath, char *newpath);
 	bool open(void *fp, char* dirPath, oflag_t oflag = O_RDONLY);
-	bool lfsOpen(void *fp, char* dirPath, oflag_t oflag = O_RDONLY);
 	bool close(void *fp);
-	bool lfsClose(void *fp);
 	int  read(void *fp, void *buf, size_t count);
-	int  lfsRead(void *fp, void *buf, size_t count);
 	size_t  write(void *fp, void *buf, size_t count);
-	size_t  lfsWrite(void *fp, void *buf, size_t count);
 	off_t  lseek(void *fp, off_t offset, int whence);
-	bool  lfsLseek(void *fp, off_t offset, int whence);
 	void fflush(void *fp);	
-	void lfsFflush(void *fp);	
 	int64_t ftell(void *fp);
+#if defined(ARDUINO_TEENSY41)
+	bool lfsExists(char *dirPath);
+	bool lfsOpen(void *fp, char* dirPath, oflag_t oflag = O_RDONLY);
+	bool lfsClose(void *fp);
+	int  lfsRead(void *fp, void *buf, size_t count);
+	size_t  lfsWrite(void *fp, void *buf, size_t count);
+	bool  lfsLseek(void *fp, off_t offset, int whence);
+	void lfsFflush(void *fp);	
 	int64_t lfsFtell(void *fp);
-	
+#endif	
 	void processMSDrive(uint8_t drive_number, msController &msDrive, UsbFs &msc);
 	void processSDDrive(uint8_t drive_number);
 	void ProcessSPISD(uint8_t drive_number);
@@ -143,7 +160,9 @@ private:
 	SdFs sd;
 	SdFs sdSPI;
 	UsbFs msc[CNT_MSDRIVES];
+#if defined(ARDUINO_TEENSY41)
 	LittleFS_QPINAND myfs; // This will become an array of LFS devices.
+#endif
 	diskIO *m_diskio = this;
 };
 

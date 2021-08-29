@@ -8,11 +8,33 @@
   See readme.md in this folder for info on microBox.
 */
 
+#include <Audio.h>
 #include <diskIOMB.h>
 #include <avr/pgmspace.h>
 #include <avr/eeprom.h>
 #include "mscFS.h"
 #include "diskIO.h"
+#include <Audio.h>
+
+// GUItool: begin automatically generated code
+AudioPlayWav           playSdWav1;     //xy=323,171
+AudioMixer4              mixer1;         //xy=647,123
+AudioMixer4              mixer3;         //xy=648,212
+//AudioOutputPT8211        pt8211_1;       //xy=828,169
+AudioOutputI2S           audioOutput;
+AudioConnection          patchCord1(playSdWav1, 0, mixer1, 0);
+AudioConnection          patchCord2(playSdWav1, 1, mixer3, 0);
+AudioConnection          patchCord3(playSdWav1, 2, mixer1, 1);
+AudioConnection          patchCord4(playSdWav1, 3, mixer3, 1);
+AudioConnection          patchCord5(playSdWav1, 4, mixer1, 2);
+AudioConnection          patchCord6(playSdWav1, 5, mixer3, 2);
+AudioConnection          patchCord7(playSdWav1, 6, mixer1, 3);
+AudioConnection          patchCord8(playSdWav1, 7, mixer3, 3);
+AudioConnection          patchCord9(mixer1, 0, audioOutput, 0);
+AudioConnection          patchCord10(mixer3, 0, audioOutput, 1);
+AudioControlSGTL5000     sgtl5000_1;
+
+// GUItool: end automatically generated code
 
 diskIO dioMB;  // One instance of diskIO.
 microBox microbox;
@@ -35,6 +57,7 @@ CMD_ENTRY microBox::Cmds[] =
     {"rename", microBox::renameCB},
     {"cp", microBox::cpCB},
     {"help", microBox::helpCB},
+    {"play", microBox::PlayCB},
     {NULL, NULL}
 };
 
@@ -72,6 +95,13 @@ void microBox::begin(PARAM_ENTRY *pParams, const char* hostName, bool localEcho,
     }
 	
 	dioMB.init();
+
+	AudioMemory(50);
+	// Comment these out if not using the audio adaptor board.
+	// This may wait forever if the SDA & SCL pins lack
+	// pullup resistors
+	sgtl5000_1.enable();
+	sgtl5000_1.volume(0.5);
 
     locEcho = localEcho;
     Params = pParams;
@@ -193,6 +223,15 @@ void microBox::ExecCommand()
 
 void microBox::cmdParser()
 {
+	// Check for volume change.
+	if(playSdWav1.isPlaying()) {
+		// uncomment these lines if you audio shield
+		// has the optional volume pot soldered
+		float vol = analogRead(15);
+		vol = vol / 1024;
+		sgtl5000_1.volume(vol);
+	}
+
     if(watchMode)
     {
         if(Serial.available())
@@ -272,7 +311,12 @@ bool microBox::HandleEscSeq(unsigned char ch)
             escSeq = ESC_STATE_CODE;
             ret = true;
         }
-        else
+        else if(ch == 0x4f)
+        {
+            escSeq = ESC_STATE_CODE;
+            ret = true;
+        }
+		else
             escSeq = ESC_STATE_NONE;
     }
     else if(escSeq == ESC_STATE_CODE)
@@ -291,6 +335,11 @@ bool microBox::HandleEscSeq(unsigned char ch)
         else if(ch == 0x44) // Cursor Left
         {
         }
+        else if(ch == 0x46) // end key
+        {
+			if(playSdWav1.isPlaying())
+				playSdWav1.stop();
+		}
         escSeq = ESC_STATE_NONE;
         ret = true;
     }
@@ -855,6 +904,49 @@ void microBox::Echo(char **pParam, uint8_t parCnt)
     }
 }
 
+void microBox::Play(char** pParam, uint8_t parCnt)
+{
+	char tempPath[256];
+	if(pParam[0] == NULL) { // Invalid path spec.
+		ErrorDir(F("play"));
+		return;
+	}	
+	strcpy(tempPath, pParam[0]); // Preserve path spec.
+	// Check which file system we are using LFS or PFsFile type.
+	int fileType = dioMB.getOsType(tempPath);
+	if(fileType < 0) {
+		ErrorDir(F("play"));
+		return;
+	}
+
+
+	// Check which file system we are using LFS or PFsFile type.
+#if defined(ARDUINO_TEENSY41)
+	if((fileType == FILE_TYPE))  {
+		if(!dioMB.lfsExists(tempPath)) {
+			ErrorDir(F("play"));
+			return;
+		}
+	}
+#endif
+	if((fileType == PFSFILE_TYPE))  {
+		if(!dioMB.exists(tempPath)) {
+			ErrorDir(F("play"));
+			return;
+		}
+	}
+	Serial.printf("Playing: %s\r\n",tempPath);
+	if(!playSdWav1.play(tempPath)) {
+		ErrorDir(F("play"));
+		return;
+	}
+}
+
+uint8_t microBox::Play_int(char* pParam)
+{
+    return 0;
+}
+
 void microBox::Cat(char** pParam, uint8_t parCnt)
 {
 	char buff[8192]; // Disk IO buffer.
@@ -877,18 +969,22 @@ void microBox::Cat(char** pParam, uint8_t parCnt)
 	}
 
 	// Check which file system we are using LFS or PFsFile type.
+#if defined(ARDUINO_TEENSY41)
 	if((fileType == FILE_TYPE))  {
 		if(!dioMB.lfsExists(tempPath)) {
 			ErrorDir(F("cat"));
 			return;
 		}
-	} else {
+	}
+#endif
+	if((fileType == PFSFILE_TYPE))  {
 		if(!dioMB.exists(tempPath)) {
 			
 			ErrorDir(F("cat"));
 			return;
 		}
 	}
+#if defined(ARDUINO_TEENSY41)
 	// Open the file to list (LFS type).
 	if(fileType == FILE_TYPE)  {
 		if(!dioMB.lfsOpen(&lfsfl, (char *)tempPath, O_RDONLY)) {
@@ -907,7 +1003,9 @@ void microBox::Cat(char** pParam, uint8_t parCnt)
 			ErrorDir(F("cat"));
 			return;
 		}
-	} else {
+	}
+#endif	
+	if((fileType == PFSFILE_TYPE))  {
 		if(!dioMB.open(&mscfl, (char *)tempPath, O_RDONLY)) {
 			ErrorDir(F("cat"));
 			return;
@@ -997,7 +1095,10 @@ void microBox::help(char** pParam, uint8_t parCnt)
 	Serial.printf(F("rm     - Remove file.\r\n"));
 	Serial.printf(F("rename - Rename file or directory.\r\n"));
 	Serial.printf(F("cp     - Copy file (src dest).\r\n"));
-	Serial.printf(F("cat    - List file (Ascii only).\r\n\r\n"));
+	Serial.printf(F("cat    - List file (Ascii only).\r\n"));
+	Serial.printf(F("play    - Play a Wav file. Press 'end' key to stop.\r\n"));
+	Serial.printf(F("        - Cannot perform disk operation on same device WAV file \r\n"));
+	Serial.printf(F("        - is playing from. It will lock up DiskIOMB!\r\n\r\n"));
 	Serial.printf(F("All commands except clear and ld accept an optional drive spec.\r\n"));
 	Serial.printf(F("The drive spec can be /volume name/ (forward slashes required)\r\n"));
 	Serial.printf(F("or a logical drive number 0:-32: (colon after number required).\r\n"));
@@ -1096,36 +1197,45 @@ void microBox::cp(char** pParam, uint8_t parCnt)
 				ErrorDir(F("cp"));
 				return;
 		}
-	} else {
+	}
+#if defined(ARDUINO_TEENSY41)
+	if(srcType == FILE_TYPE)  {
 		if(!dioMB.lfsExists(pParam[0])) {
 				ErrorDir(F("cp"));
 				return;
 		}
 	}
+#endif
 	// Open source file.
 	if(srcType == PFSFILE_TYPE)  {
 		if(!dioMB.open(&src, (char *)pParam[0], O_RDONLY)) {
 			ErrorDir(F("cp"));
 			return;
 		}
-	} else {
+	}
+#if defined(ARDUINO_TEENSY41)
+	if(srcType == FILE_TYPE)  {
 		if(!dioMB.lfsOpen(&lfsSrc, (char *)pParam[0], FILE_READ)) {
 			ErrorDir(F("cp"));
 			return;
 		}
 	}
+#endif
 	// Open destination file.
 	if(destType == PFSFILE_TYPE)  {
 		if(!dioMB.open(&dest, (char *)pParam[1], O_WRITE | O_CREAT | O_TRUNC)) {
 			ErrorDir(F("cp"));
 			return;
 		}
-	} else {
+	}
+#if defined(ARDUINO_TEENSY41)
+	if(destType == FILE_TYPE)  {
 		if(!dioMB.lfsOpen(&lfsDest, (char *)pParam[1], FILE_WRITE_BEGIN)) {
 			ErrorDir(F("cp"));
 			return;
 		}
 	}
+#endif
 	/* Copy source to destination */
 	start = micros();
 	for (;;) {
@@ -1139,22 +1249,28 @@ void microBox::cp(char** pParam, uint8_t parCnt)
 		if(srcType == PFSFILE_TYPE)  {
 			br = dioMB.read(&src, buffer, sizeof(buffer));  // Read buffer size of source file.
 			if (br <= 0) break; // Error or EOF
-		} else {
+		}
+#if defined(ARDUINO_TEENSY41)
+		if(srcType == FILE_TYPE)  {
 			br = dioMB.lfsRead(&lfsSrc, buffer, sizeof(buffer));  // Read buffer size of source file.
 			if (br <= 0) break; // Error or EOF
 		}
+#endif
 		// Write destination file.
 		if(destType == PFSFILE_TYPE)  {
 			bw = dioMB.write(&dest, buffer, br); // Write br bytes to the destination file.
 			if (bw < br) {
 				break; // Error or disk is full
 			}
-		} else {
+		}
+#if defined(ARDUINO_TEENSY41)
+		if(destType == FILE_TYPE)  {
 			bw = dioMB.lfsWrite(&lfsDest, buffer, br); // Write br bytes to the destination file.
 			if (bw < br) {
 				break; // Error or disk is full
 			}
 		}
+#endif
 		bytesRW += (uint32_t)bw;
 	}
 	// Flush destination file.
@@ -1167,12 +1283,16 @@ void microBox::cp(char** pParam, uint8_t parCnt)
 	if(srcType == PFSFILE_TYPE)  {
 		dioMB.close(&src);
 	} else {
+#if defined(ARDUINO_TEENSY41)
 		dioMB.lfsClose(&lfsSrc);
+#endif
 	}
 	if(destType == PFSFILE_TYPE)  {
 		dioMB.close(&dest);
 	} else {
+#if defined(ARDUINO_TEENSY41)
 		dioMB.lfsClose(&lfsDest);
+#endif
 	}
 	// Proccess posible errors.
 	if(br < 0) {
@@ -1216,6 +1336,11 @@ void microBox::EchoCB(char **pParam, uint8_t parCnt)
 void microBox::CatCB(char** pParam, uint8_t parCnt)
 {
     microbox.Cat(pParam, parCnt);
+}
+
+void microBox::PlayCB(char** pParam, uint8_t parCnt)
+{
+    microbox.Play(pParam, parCnt);
 }
 
 void microBox::watchCB(char** pParam, uint8_t parCnt)
