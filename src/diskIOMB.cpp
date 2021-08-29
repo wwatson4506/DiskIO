@@ -14,7 +14,7 @@
 #include <avr/eeprom.h>
 #include "mscFS.h"
 #include "diskIO.h"
-#include <Audio.h>
+#include <play_wav.h>
 
 // GUItool: begin automatically generated code
 AudioPlayWav           playSdWav1;     //xy=323,171
