@@ -72,7 +72,8 @@ public:
 	uint32_t channelMask(void);
 	uint8_t lastErr(void);              // returns last error
 	size_t memUsed(void);
-	uint8_t instanceID(void);
+    	File file(void);
+    	uint8_t instanceID(void);
 	virtual void update(void);
 private:
     void begin(void);
