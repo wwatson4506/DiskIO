@@ -3,7 +3,9 @@
 
 #include "Arduino.h"
 #include "mscFS.h"
+#if defined(ARDUINO_TEENSY41)
 #include "LittleFS.h"
+#endif
 #include "diskIO.h"
 
 diskIO dio;  // One instance of diskIO.
@@ -75,16 +77,17 @@ char *readLine(char *s) {
 char *device = "0:test1.txt"; // First logical drive on a USB physical drive.
 //char *device = "/16GEXFATP2/test1.txt"; // Second logical drive on a USB physical drive.
 //char *device = "/128GFAT32/test1.txt"; // Partition label name
-//char *device = "24:test1.txt"; // Logical drive number (in this case QPINAND).
+//char *device = "24:test1.txt"; // Logical drive number (in this case QPINAND T4.1 only). 
 
 void setup() {
   // Open serial communications and wait for port to open:
    while (!Serial) {
     SysCall::yield(); // wait for serial port to connect.
   }
+#if defined(ARDUINO_TEENSY41)
   if(CrashReport)
     Serial.print(CrashReport);
-  
+#endif  
   // This line will only work with VT100 capable terminal program.
   Serial.printf("%c",12); // Clear screen (VT100).
   
@@ -116,8 +119,10 @@ void setup() {
     if(!dio.open(&mscfl,(char *) device, O_WRONLY | O_CREAT | O_TRUNC))
 	  Serial.printf(F("open() Failed: %s, Code: %d\r\n"), device, dio.error());
   } else { //LFS
+#if defined(ARDUINO_TEENSY41)
 	if(!dio.lfsOpen(&lfsfl,(char *)device, FILE_WRITE_BEGIN))
 	  Serial.printf(F("open() Failed: %s, Code: %d\r\n"), device, dio.error());
+#endif
   }
 
   // Write our string to the open file.
@@ -126,9 +131,11 @@ void setup() {
 	if(bw != (int)strlen(buff))
 	  Serial.printf(F("write() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
   } else { // LFS
+#if defined(ARDUINO_TEENSY41)
     bw = dio.lfsWrite(&lfsfl, buff, strlen(buff));
 	if(bw != (int)strlen(buff))
 	  Serial.printf(F("write() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+#endif
   }
 
   // Show the string we wrote to the file and the number of bytes written.
@@ -140,7 +147,9 @@ void setup() {
   if(dio.getOsType(device) == PFSFILE_TYPE) {
     dio.fflush(&mscfl);
   } else { // LFS
+#if defined(ARDUINO_TEENSY41)
     dio.lfsFflush(&lfsfl);
+#endif
   }
 
   //  Close the file.
@@ -149,8 +158,10 @@ void setup() {
 	if(!dio.close(&mscfl))
 		Serial.printf(F("close() Failed: %s\r\n\r\n"), device, dio.error());
   } else { // LFS
+#if defined(ARDUINO_TEENSY41)
 	if(!dio.lfsClose(&lfsfl))
 		Serial.printf(F("close() Failed: %s\r\n\r\n"), device, dio.error());
+#endif
   }
 
   // Re-open same file for read.
@@ -159,8 +170,10 @@ void setup() {
     if(!dio.open(&mscfl, (char *)device, FILE_READ))
 	  Serial.printf(F("open() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
   } else { // LFS
+#if defined(ARDUINO_TEENSY41)
     if(!dio.lfsOpen(&lfsfl, (char *)device, FILE_READ))
 	  Serial.printf(F("open() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+#endif
   }	  
 
   // Seekfile to position 10.
@@ -169,8 +182,10 @@ void setup() {
     if(!dio.lseek(&mscfl, 10, SEEK_SET))
       Serial.printf(F("lseek() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
   } else { // LFS
+#if defined(ARDUINO_TEENSY41)
     if(!dio.lfsLseek(&lfsfl, 10, SEEK_SET))
       Serial.printf(F("lseek() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+#endif
   }
 
   // Check the current file position.
@@ -181,10 +196,12 @@ void setup() {
     else
   	  Serial.printf(F("ftell() returned %d\r\n"), dio.ftell(&mscfl));
   } else { // LFS
+#if defined(ARDUINO_TEENSY41)
     if(!dio.lfsFtell(&lfsfl))
    	  Serial.printf(F("lfsFtell() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
     else
   	  Serial.printf(F("lfsFtell() returned %d\r\n"), dio.lfsFtell(&lfsfl));
+#endif
   }
 
   // Read in the line of text.    
@@ -192,8 +209,10 @@ void setup() {
     if((br = dio.read(&mscfl, buff, 8192)) < 0)
       Serial.printf(F("read() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
   } else {
+#if defined(ARDUINO_TEENSY41)
     if((br = dio.lfsRead(&lfsfl, buff, 8192)) < 0)
       Serial.printf(F("read() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+#endif
   }
   buff[br] = '\0';
   // Show the line and the number of bytes read.
@@ -206,8 +225,10 @@ void setup() {
     if(!dio.close(&mscfl))
       Serial.printf(F("close() Failed: %s code: %d\r\n\r\n"), device, dio.error());
   } else { // LFS
+#if defined(ARDUINO_TEENSY41)
     if(!dio.lfsClose(&lfsfl))
       Serial.printf(F("close() Failed: %s code: %d\r\n\r\n"), device, dio.error());
+#endif
   }
 
   Serial.printf(F("Press enter to continue...\r\n"));
