@@ -3,9 +3,8 @@ This is a repository that uses and tests UsbMscFat-FS_DATES (KurtE's branch) on 
 
 Required libraries:
 
-KurtE's UsbMscFat-FS_DATES
-https://github.com/KurtE/UsbMscFat/tree/FS_DATES
-
+UsbMscFat
+https://github.com/wwatson4506/UsbMscFat
 FrankB's T4_PowerButton
 https://github.com/FrankBoesing/T4_PowerButton (T4.0/T4.1 freeMem functions)
 
