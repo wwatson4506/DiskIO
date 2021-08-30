@@ -24,7 +24,7 @@ The objectives are:
 - Use a more standard directory listing including time and dates stamps using the Teensy builtin RTC.
 - Properly process hot plugging including swithching default drive to next available drive if default drive is unplugged.
 - Keep all of this as compatible with SD and FS and LittleFS as possible.
-- Play wave files from any logical drive. Cannot use the same device if playing a wave file from it. Other devices can be accessed as it is non-blocking. Two files from FrankB's Teensy-WavePlayer https://github.com/FrankBoesing/Teensy-WavePlayer were modified for use with diskIO and are in the src directory.
+- Play wave files from any logical drive. Cannot use the same device if playing a wave file from it. Other devices can be accessed as it is non-blocking. Two files from FrankB's Teensy-WavePlayer https://github.com/FrankBoesing/Teensy-WavePlayer were modified for use with diskIO and are in the src directory. 'play_wav.cpp' and 'play_wav.h'.
 
 Examples:
 - DiskIOTesting.ino: A simple test of some Diskio functions.
