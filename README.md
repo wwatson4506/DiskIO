@@ -1,15 +1,12 @@
 # DiskIO
-This is a repository that uses and tests UsbMscFat-FS_DATES (KurtE's branch) on the T3.6/T4.0/T4.1. MicroMod has not beeen tested yet.
+This is a repository that uses and tests UsbMscFat-FS_Integration (mjs513's branch) on the T3.6/T4.0/T4.1. MicroMod has not beeen tested yet.
 
 Required libraries:
 
 UsbMscFat
-https://github.com/wwatson4506/UsbMscFat
+https://github.com/mjs513/UsbMscFat/tree/FS_Integration
 
-FrankB's T4_PowerButton
-https://github.com/FrankBoesing/T4_PowerButton (T4.0/T4.1 freeMem functions)
-
-Built using Arduino 1.8.15 and Teensyduino 1.54 release version.
+Built using Arduino 1.8.16 and Teensyduino 1.55 release version.
 
 The main goal is to be able to unify all of the different access methods of USBFat, SdFat and LittleFs into one. LittleFS has been a bit of a challenge but is working. So far just QPINAND has beeen tested. I want to add the rest of the LittleFS devices later. 
 
