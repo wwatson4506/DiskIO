@@ -244,7 +244,7 @@ typedef struct {
 bool AudioPlayWav::readHeader(int newState)
 {
 
-    size_t position, rd;
+    size_t position, rd = 0;
     tFileHeader fileHeader;
     tDataHeader dataHeader;
     bool irq, fmtok;

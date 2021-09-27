@@ -42,13 +42,13 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) {
 struct tm decode_fattime (uint16_t td, uint16_t tt)
 {
     struct tm tx;
-	tx.tm_year= (td>>9) + 1980;
-	tx.tm_mon= (td>>5) & (16-1);
-	tx.tm_mday= td& (32-1);
+	tx.tm_year = (td >> 9) + 1980;
+	tx.tm_mon = (td >> 5) & (16-1);
+	tx.tm_mday = td & (32-1);
 	
-	tx.tm_hour= tt>>11;
-	tx.tm_min= (tt>>5) & (64-1);
-	tx.tm_sec= 2*(tt& (32-1));
+	tx.tm_hour = tt >> 11;
+	tx.tm_min = (tt >> 5) & (64-1);
+	tx.tm_sec = 2 * (tt & (32-1));
 	return tx;
 }
 
@@ -134,27 +134,35 @@ bool diskIO::init() {
 		
 	if (!msDrives[0]) {
 #ifdef TalkToMe
-		Serial.println(F("Waiting up to 5 seconds for a USB drives\n"));
+		Serial.print(F("Waiting up to "));
+		Serial.print(MSC_CONNECT_TIMEOUT / 1000);
+		Serial.println(F(" seconds for a USB drives\n"));
 #endif
-		elapsedMillis em = 0;
-		while (em < 5000) {
-			myusb.Task();
-			for (i = 0; i < CNT_MSDRIVES; i++) if (msDrives[i]) break;
-		}
-	}
 
-	for (i = 0; i < CNT_MSDRIVES; i++) {
-		if (msDrives[i]) {
-			processMSDrive(i, msDrives[i], msc[i]);
-		}    
+checkDrivesConnected();
+
+		elapsedMillis em = 0;
+		while (em < MEDIA_READY_TIMEOUT) {
+			myusb.Task();
+			for (i = 0; i < CNT_MSDRIVES; i++) {
+				 if (msDrives[i]) break;
+			}
+		}
+
 	}
+//	for (i = 0; i < CNT_MSDRIVES; i++) {
+//		if (msDrives[i]) {
+//			processMSDrive(i, msDrives[i], msc[i]);
+//		}    
+//	}
 	processSDDrive(LOGICAL_DRIVE_SDIO);
 	ProcessSPISD(LOGICAL_DRIVE_SDSPI);
+uint64_t ts =  totalSize(20)-usedSize(20);
 #if defined(ARDUINO_TEENSY41)
 	ProcessLFS(LOGICAL_DRIVE_LFS);
 #endif	
-	chdir((char *)"0:");
-	currDrv = 0;	      // Set default drive to 0
+	if(chdir((char *)"0:"))
+		currDrv = 0;	      // Set default drive to 0
 	mscError = 0;		  // Clear errors
 	mp[currDrv].chvol();  // Change the volume to this logical drive.
 	return true;
@@ -228,8 +236,8 @@ void diskIO::processMSDrive(uint8_t drive_number, msController &msDrive, UsbFs &
   uint8_t i = 0;
   if (!msc.begin(&msDrive)) {
     Serial.println("");
-    msc.errorPrint(&Serial);
 	Serial.printf(F("initialization drive %u failed.\n"), drive_number);
+    msc.errorPrint(&Serial);
     return;
   }
   // lets see if we have any partitions to add to our list...
@@ -755,6 +763,25 @@ bool diskIO::getWildCard(char *specs, char *pattern)
 //------------------------------------------------------------------------------
 // Directory Listing functions.
 //------------------------------------------------------------------------------
+// Display file date and time. (SD/MSC)
+void diskIO::displayDateTime(uint16_t date, uint16_t time) {
+    DateTimeFields tm;
+	const char *months[12] = {
+		"January","February","March","April","May","June",
+		"July","August","September","October","November","December"
+	};
+					tm.sec = FS_SECOND(time);
+					tm.min = FS_MINUTE(time);
+					tm.hour = FS_HOUR(time);
+					tm.mday = FS_DAY(date);
+					tm.mon = FS_MONTH(date) - 1;
+					tm.year = FS_YEAR(date) - 1900;
+					for(uint8_t i = 0; i <= 10; i++) Serial.printf(F(" "));
+					Serial.printf(F("%9s %02d %02d %02d:%02d:%02d\r\n"), // Show date/time.
+									months[tm.mon],tm.mday,tm.year + 1900, 
+									tm.hour,tm.min,tm.sec);
+}
+
 // List a directory from given path. Can include a volume name delimited with '/'
 // '/name/' at the begining of path string.
 bool diskIO::lsDir(char *dirPath) {
@@ -824,7 +851,7 @@ bool diskIO::lsDir(char *dirPath) {
 		}
 // Uncomment this to show free space left on SD, SDIO, MSC devices.
 // Note: If volume is FAT32 formatted then there will be a delay before completion.
-//		Serial.printf("\r\nFree Space: %llu bytes\r\n\r\n",totalSize(currDrv)-usedSize(currDrv));
+		Serial.printf("\r\nFree Space: %llu bytes\r\n\r\n",totalSize(currDrv)-usedSize(currDrv));
 		dir.close();		// Done. Close directory base file.
 	}
 	if(currDrv != drive) {
@@ -889,6 +916,11 @@ bool diskIO::lsFiles(void *dir, char *pattern, bool wc) {
 	char fname[MAX_FILENAME_LEN];
 
 #if defined(ARDUINO_TEENSY41)
+    DateTimeFields tm;
+	const char *months[12] = {
+		"January","February","March","April","May","June",
+		"July","August","September","October","November","December"
+	};
 	if(drvIdx[currDrv].osType == FILE_TYPE) {
 		File lfsDirEntry; // LittleFS.
 		File *lfsDir = reinterpret_cast < File * > ( dir );
@@ -899,13 +931,12 @@ bool diskIO::lsFiles(void *dir, char *pattern, bool wc) {
 			if(!lfsDirEntry.isDirectory()) {
 				Serial.printf(F("%s "),lfsDirEntry.name()); // Display filename.
 				for(uint8_t i = 0; i <= (40-strlen(lfsDirEntry.name())); i++) Serial.print(" ");
-				Serial.printf(F("%10ld\r\n"),lfsDirEntry.size()); // Then filesize.
-//				dirEntry.getModifyDateTime(&date, &time);
-//				struct tm tx = decode_fattime (date, time);
-//				for(uint8_t i = 0; i <= 10; i++) Serial.printf(F(" "));
-//					Serial.printf(F("%4d-%02d-%02d %02d:%02d:%02d\r\n"), // Then date/time.
-//								tx.tm_year,tx.tm_mon,tx.tm_mday, 
-//								tx.tm_hour,tx.tm_min,tx.tm_sec);
+				Serial.printf(F("%10ld"),lfsDirEntry.size()); // Then filesize.
+				lfsDirEntry.getModifyTime(tm);
+				for(uint8_t i = 0; i <= 10; i++) Serial.printf(F(" "));
+				Serial.printf(F("%9s %02d %02d %02d:%02d:%02d\r\n"), // Show date/time.
+								months[tm.mon],tm.mday,tm.year + 1900, 
+								tm.hour,tm.min,tm.sec);
 			}
 		}
 		lfsDirEntry.close(); // Done. Close sub-entry file.
@@ -927,11 +958,11 @@ bool diskIO::lsFiles(void *dir, char *pattern, bool wc) {
 					for(uint8_t i = 0; i <= (40-strlen(fname)); i++) Serial.print(" ");
 					Serial.printf(F("%10ld"),dirEntry.fileSize()); // Then filesize.
 					dirEntry.getModifyDateTime(&date, &time);
-					struct tm tx = decode_fattime (date, time);
-					for(uint8_t i = 0; i <= 10; i++) Serial.printf(F(" "));
-					Serial.printf(F("%4d-%02d-%02d %02d:%02d:%02d\r\n"), // Then date/time.
-									tx.tm_year,tx.tm_mon,tx.tm_mday, 
-									tx.tm_hour,tx.tm_min,tx.tm_sec);
+					displayDateTime(date, time);
+//					struct tm tx = decode_fattime (date, time);
+//					Serial.printf(F("%4d-%02d-%02d %02d:%02d:%02d\r\n"), // Then date/time.
+//									tx.tm_year,tx.tm_mon,tx.tm_mday, 
+//									tx.tm_hour,tx.tm_min,tx.tm_sec);
 				}
 			}
 			dirEntry.close(); // Done. Close sub-entry file.

@@ -146,6 +146,7 @@ public:
 	bool parsePathSpec(const char *pathSpec);
 	bool getWildCard(char *specs, char *pattern);
 	bool wildcardMatch(const char *pattern, const char *filename);
+	void displayDateTime(uint16_t date, uint16_t time);
 	bool lsDir(char *);
 	bool lsSubDir(void *dir);
 	bool lsFiles(void *dir, char *pattern, bool wc);
@@ -162,6 +163,7 @@ private:
 	UsbFs msc[CNT_MSDRIVES];
 #if defined(ARDUINO_TEENSY41)
 	LittleFS_QPINAND myfs; // This will become an array of LFS devices.
+//	LittleFS_QSPIFlash myfs; // This will become an array of LFS devices.
 #endif
 	diskIO *m_diskio = this;
 };

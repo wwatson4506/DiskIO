@@ -14,7 +14,7 @@
 #include <avr/eeprom.h>
 #include "mscFS.h"
 #include "diskIO.h"
-#include <play_wav.h>
+#include "play_wav.h"
 
 // GUItool: begin automatically generated code
 AudioPlayWav           playSdWav1;     //xy=323,171
@@ -96,7 +96,7 @@ void microBox::begin(PARAM_ENTRY *pParams, const char* hostName, bool localEcho,
 	
 	dioMB.init();
 
-	AudioMemory(50);
+	AudioMemory(60);
 	// Comment these out if not using the audio adaptor board.
 	// This may wait forever if the SDA & SCL pins lack
 	// pullup resistors
