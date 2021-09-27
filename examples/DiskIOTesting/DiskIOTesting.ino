@@ -76,7 +76,7 @@ char *readLine(char *s) {
 
 char *device = "0:test1.txt"; // First logical drive on a USB physical drive.
 //char *device = "/16GEXFATP2/test1.txt"; // Second logical drive on a USB physical drive.
-//char *device = "/128GFAT32/test1.txt"; // Partition label name
+//char *device = "/128GEXFATP1/test1.txt"; // Partition label name
 //char *device = "24:test1.txt"; // Logical drive number (in this case QPINAND T4.1 only). 
 
 void setup() {
