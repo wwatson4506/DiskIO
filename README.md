@@ -13,7 +13,7 @@ This is work in progress and is strictly experimentation and/or proof of concept
 
 The objectives are:
 
-- Support up to 4 USB Mass Storage devices, the native SDIO SD card and a SPI SD card and LittleFS devices.
+- Support up to 4 USB Mass Storage devices, the native SDIO SD card and a SPI SD card and LittleFS devices.If using more than two USB storage device a powered hub should be used.
 - Allow for 4 partitions per Mass Storage device Except LittleFS, SDIO and SDSPI. Total of 32 logical drives with all types of LittleFS devices.
 - Use a volume name for access to each logical drive or use an index number for array of mounted logical drives. LittleFS, SDIO and SDSPI will   use defined device names.
 - Be able to set a default drive (change drive).
