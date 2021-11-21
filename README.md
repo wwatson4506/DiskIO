@@ -1,28 +1,27 @@
-# DiskIO
-This is a repository that uses and tests UsbMscFat-FS_Integration (mjs513's branch) on the T3.6/T4.0/T4.1. MicroMod has not beeen tested yet.
+# DiskIOV2
+This is a repository that uses and tests Teensy filesystem integration on the T3.6/T4.0/T4.1 and MicroMod.
 
 Required libraries:
 
-UsbMscFat
-https://github.com/mjs513/UsbMscFat/tree/FS_Integration
+KurtE's USBHost_t36_FS-integration_MSC
 
-Built using Arduino 1.8.16 and Teensyduino 1.55 release version.
+Built using Arduino 1.8.16 and Teensyduino 1.56B3 release version.
 
-The main goal is to be able to unify all of the different access methods of USBFat, SdFat and LittleFs into one. LittleFS has been a bit of a challenge but is working. So far just QPINAND has beeen tested. I want to add the rest of the LittleFS devices later. 
+The main goal is to be able to unify all of the different access methods of USBFat, SdFat and LittleFs into one. LittleFS has been a bit of a challenge but is working. So far just QPINAND has been tested. I want to add the rest of the LittleFS devices later. 
 
 This is work in progress and is strictly experimentation and/or proof of concept. 
 
 The objectives are:
 
 - Support up to 4 USB Mass Storage devices, the native SDIO SD card and a SPI SD card and LittleFS devices.
-- Allow for 4 partitions per Mass Storage device Except LittleFS. Total of 32 logical drives with all types of LittleFS devices.
-- Use a volume name for access to each logical drive or use an index number for array of mounted logical drives. LittleFS will   use defined device names.
+- Allow for 4 partitions per Mass Storage device Except LittleFS, SDIO and SDSPI. Total of 32 logical drives with all types of LittleFS devices.
+- Use a volume name for access to each logical drive or use an index number for array of mounted logical drives. LittleFS, SDIO and SDSPI will   use defined device names.
 - Be able to set a default drive (change drive).
 - Be able to parse a full path spec including drive spec, relative path specs and wildcard processing.
 - Use a more standard directory listing including time and dates stamps using the Teensy builtin RTC.
 - Properly process hot plugging including swithching default drive to next available drive if default drive is unplugged.
-- Keep all of this as compatible with SD and FS and LittleFS as possible.
-- Play wave files from any logical drive. Cannot use the same device if playing a wave file from it. Other devices can be accessed as it is non-blocking. Two files from FrankB's Teensy-WavePlayer https://github.com/FrankBoesing/Teensy-WavePlayer were modified for use with diskIO and are in the src directory. 'play_wav.cpp' and 'play_wav.h'.
+- Keep all of this as compatible with FS, SD, LittleFS and MSC as possible.
+- Play wav files from any logical drive. Cannot use the same device if playing a wave file from it. Other devices can be accessed as it is non-blocking. Two files from FrankB's Teensy-WavePlayer https://github.com/FrankBoesing/Teensy-WavePlayer were modified for use with diskIO and are in the src directory.
 
 Examples:
 - DiskIOTesting.ino: A simple test of some Diskio functions.

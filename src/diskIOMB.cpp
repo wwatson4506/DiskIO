@@ -12,12 +12,13 @@
 #include <diskIOMB.h>
 #include <avr/pgmspace.h>
 #include <avr/eeprom.h>
-#include "mscFS.h"
 #include "diskIO.h"
-#include "play_wav.h"
+
+#include "playFSwav.h"
 
 // GUItool: begin automatically generated code
 AudioPlayWav           playSdWav1;     //xy=323,171
+//AudioPlaySdWav           playSdWav1;     //xy=323,171
 AudioMixer4              mixer1;         //xy=647,123
 AudioMixer4              mixer3;         //xy=648,212
 //AudioOutputPT8211        pt8211_1;       //xy=828,169
@@ -66,8 +67,7 @@ const char microBox::dirList[][5] PROGMEM =
     "bin", "dev", "etc", "proc", "sbin", "var", "lib", "sys", "tmp", "usr", ""
 };
 
-microBox::microBox()
-{
+microBox::microBox() {
     bufPos = 0;
     watchMode = false;
     csvMode = false;
@@ -80,12 +80,10 @@ microBox::microBox()
     stateTelnet = TELNET_STATE_NORMAL;
 }
 
-microBox::~microBox()
-{
+microBox::~microBox() {
 }
 
-void microBox::begin(PARAM_ENTRY *pParams, const char* hostName, bool localEcho, char *histBuf, int historySize)
-{
+void microBox::begin(PARAM_ENTRY *pParams, const char* hostName, bool localEcho, char *histBuf, int historySize)  {
     historyBuf = histBuf;
     if(historyBuf != NULL && historySize != 0)
     {
@@ -111,16 +109,13 @@ void microBox::begin(PARAM_ENTRY *pParams, const char* hostName, bool localEcho,
     ShowPrompt();
 }
 
-bool microBox::AddCommand(const char *cmdName, void (*cmdFunc)(char **param, uint8_t parCnt))
-{
+bool microBox::AddCommand(const char *cmdName, void (*cmdFunc)(char **param, uint8_t parCnt)) {
     uint8_t idx = 0;
 
-    while((Cmds[idx].cmdFunc != NULL) && (idx < (MAX_CMD_NUM-1)))
-    {
+    while((Cmds[idx].cmdFunc != NULL) && (idx < (MAX_CMD_NUM-1))) {
         idx++;
     }
-    if(idx < (MAX_CMD_NUM-1))
-    {
+    if(idx < (MAX_CMD_NUM-1)) {
         Cmds[idx].cmdName = cmdName;
         Cmds[idx].cmdFunc = cmdFunc;
         idx++;
@@ -131,21 +126,18 @@ bool microBox::AddCommand(const char *cmdName, void (*cmdFunc)(char **param, uin
     return false;
 }
 
-bool microBox::isTimeout(unsigned long *lastTime, unsigned long intervall)
-{
+bool microBox::isTimeout(unsigned long *lastTime, unsigned long intervall) {
     unsigned long m;
 
     m = millis();
-    if(((m - *lastTime) >= intervall) || (*lastTime > m))
-    {
+    if(((m - *lastTime) >= intervall) || (*lastTime > m)) {
         *lastTime = m;
         return true;
     }
     return false;
 }
 
-void microBox::ShowPrompt()
-{
+void microBox::ShowPrompt() {
     Serial.print(F("root@"));
     Serial.print(machName);
     Serial.print(F(":"));
@@ -153,16 +145,13 @@ void microBox::ShowPrompt()
     Serial.print(F(">"));
 }
 
-uint8_t microBox::ParseCmdParams(char *pParam)
-{
+uint8_t microBox::ParseCmdParams(char *pParam) {
     uint8_t idx = 0;
 
     ParmPtr[idx] = pParam;
-    if(pParam != NULL)
-    {
+    if(pParam != NULL) {
         idx++;
-        while((pParam = strchr(pParam, ' ')) != NULL)
-        {
+        while((pParam = strchr(pParam, ' ')) != NULL) {
             pParam[0] = 0;
             pParam++;
             ParmPtr[idx++] = pParam;
@@ -171,12 +160,10 @@ uint8_t microBox::ParseCmdParams(char *pParam)
     return idx;
 }
 
-void microBox::ExecCommand()
-{
+void microBox::ExecCommand() {
     bool found = false;
     Serial.println();
-    if(bufPos > 0)
-    {
+    if(bufPos > 0) {
         uint8_t i=0;
         uint8_t dstlen;
         uint8_t srclen;
@@ -184,24 +171,19 @@ void microBox::ExecCommand()
 
         cmdBuf[bufPos] = 0;
         pParam = strchr(cmdBuf, ' ');
-        if(pParam != NULL)
-        {
+        if(pParam != NULL) {
             pParam++;
             srclen = pParam - cmdBuf - 1;
-        }
-        else
+        } else
             srclen = bufPos;
 
         AddToHistory(cmdBuf);
         historyCursorPos = -1;
 
-        while(Cmds[i].cmdName != NULL && found == false)
-        {
+        while(Cmds[i].cmdName != NULL && found == false) {
             dstlen = strlen(Cmds[i].cmdName);
-            if(dstlen == srclen)
-            {
-                if(strncmp(cmdBuf, Cmds[i].cmdName, dstlen) == 0)
-                {
+            if(dstlen == srclen) {
+                if(strncmp(cmdBuf, Cmds[i].cmdName, dstlen) == 0) {
                     (*Cmds[i].cmdFunc)(ParmPtr, ParseCmdParams(pParam));
                     found = true;
                     bufPos = 0;
@@ -210,19 +192,16 @@ void microBox::ExecCommand()
             }
             i++;
         }
-        if(!found)
-        {
+        if(!found) {
             bufPos = 0;
             ErrorDir(F("/bin/sh"));
             ShowPrompt();
         }
-    }
-    else
+    } else
         ShowPrompt();
 }
 
-void microBox::cmdParser()
-{
+void microBox::cmdParser() {
 	// Check for volume change.
 	if(playSdWav1.isPlaying()) {
 		// uncomment these lines if you audio shield
@@ -231,112 +210,82 @@ void microBox::cmdParser()
 		vol = vol / 1024;
 		sgtl5000_1.volume(vol);
 	}
-
-    if(watchMode)
-    {
-        if(Serial.available())
-        {
+    if(watchMode) {
+        if(Serial.available()) {
             watchMode = false;
             csvMode = false;
-        }
-        else
-        {
+        } else {
             if(isTimeout(&watchTimeout, 500))
                 Cat_int(cmdBuf);
 
             return;
         }
     }
-    while(Serial.available())
-    {
+    while(Serial.available()) {
         uint8_t ch;
         ch = Serial.read();
-        if(ch == TELNET_IAC || stateTelnet != TELNET_STATE_NORMAL)
-        {
+        if(ch == TELNET_IAC || stateTelnet != TELNET_STATE_NORMAL) {
             handleTelnet(ch);
             continue;
         }
-
         if(HandleEscSeq(ch))
             continue;
-
-        if(ch == 0x7F || ch == 0x08)
-        {
-            if(bufPos > 0)
-            {
+        if(ch == 0x7F || ch == 0x08) {
+            if(bufPos > 0) {
                 bufPos--;
                 cmdBuf[bufPos] = 0;
                 Serial.write(ch);
                 Serial.print(F(" \x1B[1D"));
-            }
-            else
-            {
+            } else {
                 Serial.print(F("\a"));
             }
         }
-        else if(ch == '\t')
-        {
+        else if(ch == '\t') {
             HandleTab();
         }
-        else if(ch != '\r' && bufPos < (MAX_CMD_BUF_SIZE-1))
-        {
-            if(ch != '\n')
-            {
+        else if(ch != '\r' && bufPos < (MAX_CMD_BUF_SIZE-1)) {
+            if(ch != '\n') {
                 if(locEcho)
                     Serial.write(ch);
                 cmdBuf[bufPos++] = ch;
                 cmdBuf[bufPos] = 0;
             }
-        }
-        else
-        {
+        } else {
             ExecCommand();
         }
     }
 }
 
-bool microBox::HandleEscSeq(unsigned char ch)
-{
+bool microBox::HandleEscSeq(unsigned char ch) {
     bool ret = false;
 
-    if(ch == 27)
-    {
+    if(ch == 27) {
         escSeq = ESC_STATE_START;
         ret = true;
     }
-    else if(escSeq == ESC_STATE_START)
-    {
-        if(ch == 0x5B)
-        {
+    else if(escSeq == ESC_STATE_START) {
+        if(ch == 0x5B) {
             escSeq = ESC_STATE_CODE;
             ret = true;
         }
-        else if(ch == 0x4f)
-        {
+        else if(ch == 0x4f) {
             escSeq = ESC_STATE_CODE;
             ret = true;
-        }
-		else
+        } else
             escSeq = ESC_STATE_NONE;
     }
-    else if(escSeq == ESC_STATE_CODE)
-    {
-        if(ch == 0x41) // Cursor Up
-        {
+    else if(escSeq == ESC_STATE_CODE) {
+        if(ch == 0x41) { // Cursor Up
             HistoryUp();
         }
-        else if(ch == 0x42) // Cursor Down
-        {
+        else if(ch == 0x42) { // Cursor Down
             HistoryDown();
         }
-        else if(ch == 0x43) // Cursor Right
-        {
+        else if(ch == 0x43) { // Cursor Right
         }
-        else if(ch == 0x44) // Cursor Left
-        {
+        else if(ch == 0x44) { // Cursor Left
         }
-        else if(ch == 0x46) // end key
-        {
+        else if(ch == 0x46) { // end key
 			if(playSdWav1.isPlaying())
 				playSdWav1.stop();
 		}
@@ -346,26 +295,20 @@ bool microBox::HandleEscSeq(unsigned char ch)
     return ret;
 }
 
-uint8_t microBox::ParCmp(uint8_t idx1, uint8_t idx2, bool cmd)
-{
+uint8_t microBox::ParCmp(uint8_t idx1, uint8_t idx2, bool cmd) {
     uint8_t i=0;
-
     const char *pName1;
     const char *pName2;
 
-    if(cmd)
-    {
+    if(cmd) {
         pName1 = Cmds[idx1].cmdName;
         pName2 = Cmds[idx2].cmdName;
-    }
-    else
-    {
+    } else {
         pName1 = Params[idx1].paramName;
         pName2 = Params[idx2].paramName;
     }
 
-    while(pName1[i] != 0 && pName2[i] != 0)
-    {
+    while(pName1[i] != 0 && pName2[i] != 0) {
         if(pName1[i] != pName2[i])
             return i;
         i++;
@@ -781,34 +724,22 @@ int8_t microBox::GetParamIdx(char* pParam, bool partStr, int8_t startIdx)
         dir = GetDir(pParam, true);
         if(dir == NULL)
             dir = dioMB.cwd();
-        if(dir != NULL)
-        {
-
-//            if(strcmp_P(dir, PSTR("/dev")) == 0)
-//            {
-                file = GetFile(pParam);
-                if(file != NULL)
-                {
-                    while(Params[i].paramName != NULL)
-                    {
-                        if(partStr)
-                        {
-                            if(strncmp(Params[i].paramName, file, strlen(file))== 0)
-                            {
-                                return i;
-                            }
+        if(dir != NULL) {
+			file = GetFile(pParam);
+			if(file != NULL) {
+				while(Params[i].paramName != NULL) {
+					if(partStr) {
+						if(strncmp(Params[i].paramName, file, strlen(file))== 0) {
+							return i;
                         }
-                        else
-                        {
-                            if(strcmp(Params[i].paramName, file)== 0)
-                            {
-                                return i;
-                            }
+                    } else {
+						if(strcmp(Params[i].paramName, file)== 0) {
+							return i;
                         }
-                        i++;
                     }
+                    i++;
                 }
-//            }
+            }
         }
     }
     return -1;
@@ -912,28 +843,9 @@ void microBox::Play(char** pParam, uint8_t parCnt)
 		return;
 	}	
 	strcpy(tempPath, pParam[0]); // Preserve path spec.
-	// Check which file system we are using LFS or PFsFile type.
-	int fileType = dioMB.getOsType(tempPath);
-	if(fileType < 0) {
+	if(!dioMB.exists(tempPath)) {
 		ErrorDir(F("play"));
 		return;
-	}
-
-
-	// Check which file system we are using LFS or PFsFile type.
-#if defined(ARDUINO_TEENSY41)
-	if((fileType == FILE_TYPE))  {
-		if(!dioMB.lfsExists(tempPath)) {
-			ErrorDir(F("play"));
-			return;
-		}
-	}
-#endif
-	if((fileType == PFSFILE_TYPE))  {
-		if(!dioMB.exists(tempPath)) {
-			ErrorDir(F("play"));
-			return;
-		}
 	}
 	Serial.printf("Playing: %s\r\n",tempPath);
 	if(!playSdWav1.play(tempPath)) {
@@ -954,75 +866,35 @@ void microBox::Cat(char** pParam, uint8_t parCnt)
 	char tempPath[256];
 	buff[0] = 0;
 	// Create an instance of PFsFile.
-	PFsFile mscfl; 
-	File lfsfl;
+	File f;
 	if(pParam[0] == NULL) { // Invalid path spec.
 		ErrorDir(F("cat"));
 		return;
 	}	
 	strcpy(tempPath, pParam[0]); // Preserve path spec.
-	// Check which file system we are using LFS or PFsFile type.
-	int fileType = dioMB.getOsType(tempPath);
-	if(fileType < 0) {
+	if(!dioMB.exists(tempPath)) {
 		ErrorDir(F("cat"));
 		return;
 	}
-
-	// Check which file system we are using LFS or PFsFile type.
-#if defined(ARDUINO_TEENSY41)
-	if((fileType == FILE_TYPE))  {
-		if(!dioMB.lfsExists(tempPath)) {
+	if(!dioMB.open(&f, (char *)tempPath, O_RDONLY)) {
 			ErrorDir(F("cat"));
 			return;
-		}
 	}
-#endif
-	if((fileType == PFSFILE_TYPE))  {
-		if(!dioMB.exists(tempPath)) {
-			
-			ErrorDir(F("cat"));
-			return;
-		}
+	for(;;) {
+		br = dioMB.read(&f, buff, sizeof(buff));
+		// If last read size is less than the buffer size, terminate the string
+		// at actual size.
+		if((char)br < sizeof(buff)) buff[br] = 0;
+		Serial.printf("%s",buff);
+		if (br <= 0) break; // EOF reached.
 	}
-#if defined(ARDUINO_TEENSY41)
-	// Open the file to list (LFS type).
-	if(fileType == FILE_TYPE)  {
-		if(!dioMB.lfsOpen(&lfsfl, (char *)tempPath, O_RDONLY)) {
-			ErrorDir(F("cat"));
-			return;
-		}
-		for(;;) {
-			br = dioMB.lfsRead(&lfsfl, buff, sizeof(buff));
-			// If last read size is less than the buffer size, terminate the string
-			// at actual size.
-			if((char)br < sizeof(buff)) buff[br] = 0;
-			Serial.printf("%s",buff);
-			if (br <= 0) break; // EOF reached.
-		}
-		if(!dioMB.lfsClose(&lfsfl)) { // Always returns true with LFS.
-			ErrorDir(F("cat"));
-			return;
-		}
+	if(br < 0) {
+		ErrorDir(F("cat"));
+		return;
 	}
-#endif	
-	if((fileType == PFSFILE_TYPE))  {
-		if(!dioMB.open(&mscfl, (char *)tempPath, O_RDONLY)) {
-			ErrorDir(F("cat"));
-			return;
-		}
-		for(;;) {
-			br = mscfl.fgets(buff, sizeof(buff));
-			if (br <= 0) break; // Error
-			Serial.printf("%s",buff);
-		}
-		if(br < 0) {
-			ErrorDir(F("cat"));
-			return;
-		}
-		if(!dioMB.close(&mscfl)) {
-			ErrorDir(F("cat"));
-			return;
-		}
+	if(!dioMB.close(&f)) {
+		ErrorDir(F("cat"));
+		return;
 	}
 	return;
 }
@@ -1174,68 +1046,35 @@ void microBox::rename(char** pParam, uint8_t parCnt)
 void microBox::cp(char** pParam, uint8_t parCnt)
 {
     int32_t br = 0, bw = 0;          // File read/write count
-	uint32_t bufferSize = 8*1024; // Buffer size. Play with this:)
+	uint32_t bufferSize = 16*1024; // Buffer size. Play with this:)
 	uint32_t buffer[bufferSize];  // File copy buffer
 	uint32_t cntr = 0;
 	uint32_t start = 0, finish = 0;
 	uint32_t bytesRW = 0;
 
-	PFsFile src; 
-	File lfsSrc;
-	PFsFile dest; 
-	File lfsDest; 
+	File src; 
+	File dest; 
 
 	if((pParam[0] == NULL) || (pParam[1] == NULL)) {
 		ErrorDir(F("cp"));
 		return;
 	}	
-	uint8_t srcType = dioMB.getOsType(pParam[0]);
-	uint8_t destType = dioMB.getOsType(pParam[1]);
 	// Does source file exist?
-	if(srcType == PFSFILE_TYPE)  {
-		if(!dioMB.exists(pParam[0])) {
-				ErrorDir(F("cp"));
-				return;
-		}
+	if(!dioMB.exists(pParam[0])) {
+			ErrorDir(F("cp"));
+			return;
 	}
-#if defined(ARDUINO_TEENSY41)
-	if(srcType == FILE_TYPE)  {
-		if(!dioMB.lfsExists(pParam[0])) {
-				ErrorDir(F("cp"));
-				return;
-		}
-	}
-#endif
 	// Open source file.
-	if(srcType == PFSFILE_TYPE)  {
-		if(!dioMB.open(&src, (char *)pParam[0], O_RDONLY)) {
-			ErrorDir(F("cp"));
-			return;
-		}
+	if(!dioMB.open(&src, (char *)pParam[0], FILE_READ)) {
+		ErrorDir(F("cp"));
+		return;
 	}
-#if defined(ARDUINO_TEENSY41)
-	if(srcType == FILE_TYPE)  {
-		if(!dioMB.lfsOpen(&lfsSrc, (char *)pParam[0], FILE_READ)) {
-			ErrorDir(F("cp"));
-			return;
-		}
-	}
-#endif
 	// Open destination file.
-	if(destType == PFSFILE_TYPE)  {
-		if(!dioMB.open(&dest, (char *)pParam[1], O_WRITE | O_CREAT | O_TRUNC)) {
-			ErrorDir(F("cp"));
-			return;
-		}
+	if(!dioMB.open(&dest, (char *)pParam[1], FILE_WRITE_BEGIN)) {
+		ErrorDir(F("cp"));
+		return;
 	}
-#if defined(ARDUINO_TEENSY41)
-	if(destType == FILE_TYPE)  {
-		if(!dioMB.lfsOpen(&lfsDest, (char *)pParam[1], FILE_WRITE_BEGIN)) {
-			ErrorDir(F("cp"));
-			return;
-		}
-	}
-#endif
+
 	/* Copy source to destination */
 	start = micros();
 	for (;;) {
@@ -1246,54 +1085,18 @@ void microBox::cp(char** pParam, uint8_t parCnt)
 
 #endif
 		// Read source file.
-		if(srcType == PFSFILE_TYPE)  {
-			br = dioMB.read(&src, buffer, sizeof(buffer));  // Read buffer size of source file.
-			if (br <= 0) break; // Error or EOF
-		}
-#if defined(ARDUINO_TEENSY41)
-		if(srcType == FILE_TYPE)  {
-			br = dioMB.lfsRead(&lfsSrc, buffer, sizeof(buffer));  // Read buffer size of source file.
-			if (br <= 0) break; // Error or EOF
-		}
-#endif
+		br = dioMB.read(&src, buffer, sizeof(buffer));  // Read buffer size of source file.
+		if (br <= 0) break; // Error or EOF
 		// Write destination file.
-		if(destType == PFSFILE_TYPE)  {
-			bw = dioMB.write(&dest, buffer, br); // Write br bytes to the destination file.
-			if (bw < br) {
-				break; // Error or disk is full
-			}
-		}
-#if defined(ARDUINO_TEENSY41)
-		if(destType == FILE_TYPE)  {
-			bw = dioMB.lfsWrite(&lfsDest, buffer, br); // Write br bytes to the destination file.
-			if (bw < br) {
-				break; // Error or disk is full
-			}
-		}
-#endif
+		bw = dioMB.write(&dest, buffer, br); // Write br bytes to the destination file.
+		if (bw < br) break; // Error or disk is full
 		bytesRW += (uint32_t)bw;
 	}
 	// Flush destination file.
-	if(destType == PFSFILE_TYPE)  {
-		dioMB.fflush(&dest); // Flush write buffer.
-	} else {
-		dioMB.fflush(&lfsDest); // Flush write buffer.
-	}
+	dioMB.fflush(&dest); // Flush write buffer.
 	// Close open files
-	if(srcType == PFSFILE_TYPE)  {
-		dioMB.close(&src);
-	} else {
-#if defined(ARDUINO_TEENSY41)
-		dioMB.lfsClose(&lfsSrc);
-#endif
-	}
-	if(destType == PFSFILE_TYPE)  {
-		dioMB.close(&dest);
-	} else {
-#if defined(ARDUINO_TEENSY41)
-		dioMB.lfsClose(&lfsDest);
-#endif
-	}
+	dioMB.close(&src);
+	dioMB.close(&dest);
 	// Proccess posible errors.
 	if(br < 0) {
 		dioMB.setError(READ_ERROR);
