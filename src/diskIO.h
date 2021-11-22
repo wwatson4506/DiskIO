@@ -21,7 +21,12 @@
 
 #define LOGICAL_DRIVE_SDIO  4
 #define LOGICAL_DRIVE_SDSPI 5
-#define LOGICAL_DRIVE_LFS   6
+#define LFS_DRIVE_QPINAND   24
+#define LFS_DRIVE_QSPIFLASH 25
+#define LFS_DRIVE_QPINOR5   26
+#define LFS_DRIVE_QPINOR6   27
+#define LFS_DRIVE_SPINAND3  28
+#define LFS_DRIVE_SPINAND4  29
 
 #define CS_SD BUILTIN_SDCARD
 #define SD_SPI_CS 10
@@ -32,9 +37,8 @@
 //#define TalkToMe  1 // Uncomment this for debug
 
 #if defined(ARDUINO_TEENSY41)
-// LFS Testing (Just QPINAND for now)
-//#define QPINAND_CS 3
-const char memDrvName[] {"QPINAND"};
+// Set which Chip Select pin for SPI usage
+const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #5, #6 : NAND 1Gb on #3, 2GB on #4
 #endif
 
 // Path spec defines.
@@ -128,7 +132,7 @@ public:
 	int64_t ftell(File *fp);
 	bool processSDDrive(void);
 	bool ProcessSPISD(void);
-	void ProcessLFS(uint8_t drive_number);
+	bool ProcessLFS(uint8_t drive_number, const char *name);
 	bool processPathSpec(char *path);
 	uint8_t getVolumeCount(void);
 	void listAvailableDrives(print_t* p);
@@ -153,8 +157,13 @@ private:
 	SDClass sdSDIO;
 	SDClass spi;
 #if defined(ARDUINO_TEENSY41)
-	LittleFS_QPINAND QPINandFS; // This will become an array of LFS devices.
-	LittleFS_QSPIFlash QSpiFlashFS; // This will become an array of LFS devices.
+	LittleFS_QPINAND   QPINandFS;
+	LittleFS_QSPIFlash QSpiFlashFS;
+	LittleFS_Program   ProgFS;
+	LittleFS_SPIFlash  SPIFlashFS[2];
+	LittleFS_SPIFram   SPIRamFS;
+	LittleFS_SPINAND   SPINandFS[2];
+	
 #endif
 	diskIO *m_diskio = this;
 };

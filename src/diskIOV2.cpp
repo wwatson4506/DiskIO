@@ -102,7 +102,7 @@ void diskIO::listAvailableDrives(print_t* p) {
     for(uint8_t i = 0; i < CNT_PARITIONS; i++) {
 	if(drvIdx[i].valid) {
 		count_mp++;
-		p->printf(F("Logical Drive #: %2u | Volume Label: %11s | valid: %u | "),
+		p->printf(F("Logical Drive #: %2u: | Volume Label: %11s | valid: %u | "),
                                                            drvIdx[i].ldNumber,
                                                            drvIdx[i].name,
                                                            drvIdx[i].valid);
@@ -215,7 +215,12 @@ bool diskIO::init() {
 	processSDDrive();
 	ProcessSPISD();
 #if defined(ARDUINO_TEENSY41)
-	ProcessLFS(LOGICAL_DRIVE_LFS);
+	ProcessLFS(LFS_DRIVE_QPINAND, "QPINAND");
+	ProcessLFS(LFS_DRIVE_QSPIFLASH, "QSPIFLASH");
+	ProcessLFS(LFS_DRIVE_QPINOR5, "SPIFLASH5");
+	ProcessLFS(LFS_DRIVE_QPINOR6, "SPIFLASH6");
+	ProcessLFS(LFS_DRIVE_SPINAND3, "SPINAND3");
+	ProcessLFS(LFS_DRIVE_SPINAND4, "SPINAND4");
 #endif	
 
 	if(chdir((char *)"0:"))
@@ -231,7 +236,7 @@ bool diskIO::init() {
 bool diskIO::processSDDrive(void)
 {
 #ifdef TalkToMe
-  Serial.printf(F("Initialize SDIO SD card %d...\n"), drive_number);
+  Serial.printf(F("Initialize SDIO SD card...\r\n"));
 #endif
 
   if (!sdfs[0].sd.begin(sdfs[0].csPin)) return false; // SDIO Not available
@@ -255,7 +260,7 @@ bool diskIO::processSDDrive(void)
 // --------------------------------------
 bool diskIO::ProcessSPISD(void) {
 #ifdef TalkToMe
-    Serial.printf(F("Initialize SPI SD card %d...\n"),drive_number);
+    Serial.printf(F("Initialize SPI SD card...\r\n"));
 #endif
 
   if (!sdfs[1].sd.begin(sdfs[1].csPin)) return false; // SDSPI Not available
@@ -278,27 +283,60 @@ bool diskIO::ProcessSPISD(void) {
 // Mount LFS device if possible.
 // (KurtE).
 // --------------------------------------
-void diskIO::ProcessLFS(uint8_t drive_number) {
+bool diskIO::ProcessLFS(uint8_t drive_number, const char *name) {
 #ifdef TalkToMe
     Serial.printf(F("Initialize LFS device %d...\n"),drive_number);
 #endif
   // TODO: Proccess all other possible LFS devices.
   // Only QPINAND tested at this time.
-  uint8_t slot = drive_number * SLOT_OFFSET;
+  uint8_t slot = drive_number;
   drvIdx[slot].ldNumber = slot;
-  if (!QPINandFS.begin()) {
-	Serial.printf("Error starting %s\n", memDrvName);
-	return;
+
+  switch(drive_number) {
+	case LFS_DRIVE_QPINAND:
+		if (!QPINandFS.begin()) return false;
+		drvIdx[slot].fstype = &QPINandFS;
+		break;
+	case LFS_DRIVE_QSPIFLASH:
+		if (!QSpiFlashFS.begin()) return false;
+		drvIdx[slot].fstype = &QSpiFlashFS;
+		break;
+	case LFS_DRIVE_QPINOR5:
+      pinMode(5,OUTPUT);
+      digitalWriteFast(5,HIGH);
+		if (!SPIFlashFS[0].begin(5,SPI)) return false;
+		drvIdx[slot].fstype = &SPIFlashFS[0];
+		break;
+	case LFS_DRIVE_QPINOR6:
+      pinMode(6,OUTPUT);
+      digitalWriteFast(6,HIGH);
+		if (!SPIFlashFS[1].begin(6,SPI)) return false;
+		drvIdx[slot].fstype = &SPIFlashFS[1];
+		break;
+	case LFS_DRIVE_SPINAND3:
+      pinMode(3,OUTPUT);
+      digitalWriteFast(3,HIGH);
+		if (!SPINandFS[0].begin(3,SPI)) return false;
+		drvIdx[slot].fstype = &SPINandFS[0];
+		break;
+	case LFS_DRIVE_SPINAND4:
+      pinMode(4,OUTPUT);
+      digitalWriteFast(4,HIGH);
+		if (!SPINandFS[1].begin(4,SPI)) return false;
+		drvIdx[slot].fstype = &SPINandFS[1];
+		break;
+	default:
+		return false;
   }
   drvIdx[slot].ldNumber = slot;
-  strcpy(drvIdx[slot].name, memDrvName);
+  strcpy(drvIdx[slot].name, name);
   sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
-  drvIdx[slot].fstype = &QPINandFS;
   drvIdx[slot].currentPath[0] = '\0';
   drvIdx[slot].fatType = LFS_TYPE;
   drvIdx[slot].driveType = LFS_TYPE;
   drvIdx[slot].ifaceType = LFS_TYPE;
   drvIdx[slot].valid = true;
+  return true;
 }
 #endif
 //--------------------------------------------------
