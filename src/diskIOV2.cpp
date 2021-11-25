@@ -92,6 +92,20 @@ void diskIO::setError(uint8_t error) {
 	mscError = error; // Set error code.
 }
 
+// -----------------------------------
+// Find next available drive.
+// -----------------------------------
+void diskIO::findNextDrive(void) {
+	for(uint8_t i = 0;  i < CNT_PARITIONS; i++) {
+		if(drvIdx[i].valid == true) {
+			currDrv = i;
+			changeVolume(currDrv);     // Change the volume to this logical drive.
+			sprintf(drvIdx[currDrv].fullPath,"/%s%s",drvIdx[currDrv].name, drvIdx[currDrv].currentPath);
+			break;
+		}
+	}
+}
+
 //--------------------------------------------------------------
 // Display info on available mounted devices and logical drives.
 //--------------------------------------------------------------
@@ -133,6 +147,11 @@ void diskIO::listAvailableDrives(print_t* p) {
   Serial.printf("Default Logical Drive: /%s/ (%d:)\r\n",drvIdx[currDrv].name,drvIdx[currDrv].ldNumber);
 }
 
+//------------------------------------------------------
+// Check for disconnected/newly connected MSC drives.
+// If a drive has been disconnected find the next valid
+// drive and set as default drive including SD and LFS.
+//------------------------------------------------------
 void diskIO::connectedMSCDrives() {
 #ifdef TalkToMe
   Serial.printf("connectedMSCDrives()...\r\n");
@@ -176,6 +195,8 @@ void diskIO::connectedMSCDrives() {
 		drvIdx[i].fatType = 0;
 		drvIdx[i].ifaceType = 0;
 		// Else find and setup next avaiable device.
+		findNextDrive();
+/*
 		for(uint8_t i = 0;  i < CNT_PARITIONS; i++) {
 			if(drvIdx[i].valid == true) {
 				currDrv = i;
@@ -184,10 +205,55 @@ void diskIO::connectedMSCDrives() {
 				break;
 			}
 		}
+*/
     }
   }
 }
 
+
+//---------------------------------------------------------------------------
+// Create filesystem from path spec.
+// Will fail if drive does not exist or is an invald path spec.
+//---------------------------------------------------------------------------
+bool diskIO::mkfs(char *path, int fat_type) {
+#ifdef TalkToMe
+    Serial.printf(F("mkfs(%s, %d)\r\n"),path, fat_type);
+#endif
+	setError(DISKIO_PASS); // Clear any existing error codes.
+ 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
+	char savePath[256];
+	savePath[0] = 0;
+	
+    // Preserve original path spec. Should only change if chdir() is used.	
+	strcpy(savePath,path);
+	// Process path spec.  Return false if failed (-1).
+	if(processPathSpec(savePath)) {
+		// First check if we are using a LFS device.
+		if(drvIdx[currDrv].ifaceType == LFS_TYPE) {
+			if(!drvIdx[currDrv].valid) {
+				setError(LDRIVE_NOT_FOUND);
+				goto Fail;
+			}
+			if(!drvIdx[currDrv].fstype->format(fat_type, '*', Serial)) {
+				setError(FORMAT_ERROR);
+				goto Fail;
+			}
+		} else {
+			if(!drvIdx[currDrv].fstype->format(fat_type, '*', Serial)) {
+				setError(FORMAT_ERROR);
+				goto Fail;
+			}
+		}
+	}
+Fail:
+	if(currDrv != drive) {
+		changeVolume(drive); // Change back to original logical drive. If changed.
+		currDrv = drive;    // Ditto with the drive index.
+	}
+	if(mscError == DISKIO_PASS)
+		return true;
+	return false;
+}
 // -------------------------------------------------------------------------
 // Initialize diskIO system. Find available drives and partitions.
 // -------------------------------------------------------------------------
@@ -223,8 +289,9 @@ bool diskIO::init() {
 	ProcessLFS(LFS_DRIVE_SPINAND4, "SPINAND4");
 #endif	
 
-	if(chdir((char *)"0:"))
-		currDrv = 0;	      // Set default drive to 0
+//	if(chdir((char *)"0:"))
+//		currDrv = 0;	      // Set default drive to 0
+	findNextDrive(); // Find first avalable drive.
 	mscError = 0;		  // Clear errors
 	return true;
 }

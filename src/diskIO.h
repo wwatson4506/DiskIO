@@ -82,6 +82,7 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 #define RMDIR_ERROR			12
 #define RM_ERROR			13
 #define DISK_FULL_ERROR		14
+#define FORMAT_ERROR		15
 #define LDRIVE_NOT_FOUND	252	
 #define DEVICE_NOT_CONNECTED 253
 
@@ -110,7 +111,9 @@ public:
 
 	uint8_t error(void);
 	void setError(uint8_t error);
+	bool mkfs(char *path, int fat_type);
 	bool init();
+	void findNextDrive(void);
 	void connectedMSCDrives();
 	void checkDrivesConnected(void);
 	int  getLogicalDriveNumber(char *path);	

@@ -59,6 +59,7 @@ CMD_ENTRY microBox::Cmds[] =
     {"cp", microBox::cpCB},
     {"help", microBox::helpCB},
     {"play", microBox::PlayCB},
+	{"mkfs", microBox::mkfsCB}, 
     {NULL, NULL}
 };
 
@@ -927,6 +928,20 @@ void microBox::rm(char** pParam, uint8_t parCnt) {
 		}
 }
 
+void microBox::mkfs(char** pParam, uint8_t parCnt) {
+	char tempPath[256];
+
+	if(pParam[0] == NULL) {
+		ErrorDir(F("mkfs"));
+		return;
+	}	
+	strcpy(tempPath, pParam[0]);
+	if(!dioMB.mkfs(pParam[0], atoi(pParam[1]))) {
+			ErrorDir(F("mkfs"));
+			return;
+	}
+}
+
 void microBox::rename(char** pParam, uint8_t parCnt) {
 	char tempPath[256];
 
@@ -1071,6 +1086,10 @@ void microBox::rmdirCB(char** pParam, uint8_t parCnt) {
 
 void microBox::rmCB(char** pParam, uint8_t parCnt)  {
     microbox.rm(pParam, parCnt);
+}
+
+void microBox::mkfsCB(char** pParam, uint8_t parCnt) {
+    microbox.mkfs(pParam, parCnt);
 }
 
 void microBox::renameCB(char** pParam, uint8_t parCnt) {
