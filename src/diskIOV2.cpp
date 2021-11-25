@@ -220,6 +220,7 @@ bool diskIO::init() {
 	ProcessLFS(LFS_DRIVE_QPINOR5, "SPIFLASH5");
 	ProcessLFS(LFS_DRIVE_QPINOR6, "SPIFLASH6");
 	ProcessLFS(LFS_DRIVE_SPINAND3, "SPINAND3");
+delay(10);
 	ProcessLFS(LFS_DRIVE_SPINAND4, "SPINAND4");
 #endif	
 
@@ -865,7 +866,7 @@ bool diskIO::lsDir(char *dirPath) {
 #if defined(ARDUINO_TEENSY41)
 		case LFS_TYPE:
 			Serial.printf("Free Space: %llu\r\n",
-			QPINandFS.totalSize()-QPINandFS.usedSize());
+			drvIdx[currDrv].fstype->totalSize()-drvIdx[currDrv].fstype->usedSize());
 			break;
 #endif
 	}
