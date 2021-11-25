@@ -220,7 +220,6 @@ bool diskIO::init() {
 	ProcessLFS(LFS_DRIVE_QPINOR5, "SPIFLASH5");
 	ProcessLFS(LFS_DRIVE_QPINOR6, "SPIFLASH6");
 	ProcessLFS(LFS_DRIVE_SPINAND3, "SPINAND3");
-delay(10);
 	ProcessLFS(LFS_DRIVE_SPINAND4, "SPINAND4");
 #endif	
 
