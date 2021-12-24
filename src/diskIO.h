@@ -55,14 +55,6 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 #define LFS_TYPE	5
 #endif
 
-// Types of OS
-#define PFSFILE_TYPE 0
-#if defined(ARDUINO_TEENSY41)
-#define FILE_TYPE    1
-#else
-#define FILE_TYPE    0
-#endif
-
 // Four partition slot per physical device
 #define SLOT_OFFSET 4
 
@@ -83,6 +75,7 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 #define RM_ERROR			13
 #define DISK_FULL_ERROR		14
 #define FORMAT_ERROR		15
+#define AUDIO_WAV_PLAY_ERR	16
 #define LDRIVE_NOT_FOUND	252	
 #define DEVICE_NOT_CONNECTED 253
 
@@ -97,7 +90,7 @@ typedef struct {
 	char	fullPath[256];	 // Full path name. Includes Logical drive name.
 	bool	valid = false;   // If true device is connected and mounted.
 	uint8_t	ldNumber = 0;    // Logical drive number.
-	uint8_t	driveType = 0;       // USB, SDHC, SDHX or littleFS
+	uint8_t	driveType = 0;   // USB, SDHC, SDHX or littleFS
 	uint8_t	fatType = 0;     // FAT32 or ExFat
 	uint8_t	ifaceType = 0;	 // Interface type USB, SDHC, SPI or LFS.
 } deviceDecriptorEntry_t;
@@ -115,7 +108,7 @@ public:
 	bool init();
 	void findNextDrive(void);
 	void connectedMSCDrives();
-	void checkDrivesConnected(void);
+	void checkSDDrives(void);
 	int  getLogicalDriveNumber(char *path);	
 	int  isDriveSpec(char *driveSpec, bool preservePath);
 	int  changeDrive(char *driveSpec);
@@ -148,6 +141,7 @@ public:
 	bool lsSubDir(void *dir);
 	bool lsFiles(void *dir, char *pattern, bool wc);
 	uint8_t getCDN(void);
+	void setCDN(uint8_t drive);
 	char *cwd(void);
 	diskIO *dio() { return m_diskio; };
 private:

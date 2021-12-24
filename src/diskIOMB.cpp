@@ -9,33 +9,32 @@
 */
 
 #include <Audio.h>
+#include <play_sd_mp3.h>
+#include <play_sd_aac.h>
+#include <play_sd_flac.h>
 #include <diskIOMB.h>
 #include <avr/pgmspace.h>
 #include <avr/eeprom.h>
 #include "diskIO.h"
 
-#include "playFSwav.h"
-
 // GUItool: begin automatically generated code
-AudioPlayWav           playSdWav1;     //xy=323,171
-//AudioPlaySdWav           playSdWav1;     //xy=323,171
-AudioMixer4              mixer1;         //xy=647,123
-AudioMixer4              mixer3;         //xy=648,212
-//AudioOutputPT8211        pt8211_1;       //xy=828,169
-AudioOutputI2S           audioOutput;
-AudioConnection          patchCord1(playSdWav1, 0, mixer1, 0);
-AudioConnection          patchCord2(playSdWav1, 1, mixer3, 0);
-AudioConnection          patchCord3(playSdWav1, 2, mixer1, 1);
-AudioConnection          patchCord4(playSdWav1, 3, mixer3, 1);
-AudioConnection          patchCord5(playSdWav1, 4, mixer1, 2);
-AudioConnection          patchCord6(playSdWav1, 5, mixer3, 2);
-AudioConnection          patchCord7(playSdWav1, 6, mixer1, 3);
-AudioConnection          patchCord8(playSdWav1, 7, mixer3, 3);
-AudioConnection          patchCord9(mixer1, 0, audioOutput, 0);
-AudioConnection          patchCord10(mixer3, 0, audioOutput, 1);
-AudioControlSGTL5000     sgtl5000_1;
-
-// GUItool: end automatically generated code
+AudioPlaySdMp3           playMp31;       //xy=154,78
+AudioPlaySdWav           playWav; //xy=154,422
+AudioPlaySdRaw           playRaw; //xy=154,422
+AudioPlaySdAac           playAac; //xy=154,422
+AudioPlaySdFlac          playFlac;
+AudioOutputI2S           i2s1;           //xy=334,89
+AudioConnection          patchCord1(playMp31, 0, i2s1, 0);
+AudioConnection          patchCord2(playMp31, 1, i2s1, 1);
+AudioConnection          patchCord3(playWav, 0, i2s1, 0);
+AudioConnection          patchCord4(playWav, 1, i2s1, 1);
+AudioConnection          patchCord5(playAac, 0, i2s1, 0);
+AudioConnection          patchCord6(playAac, 1, i2s1, 1);
+AudioConnection          patchCord7(playRaw, 0, i2s1, 0);
+AudioConnection          patchCord8(playFlac, 0, i2s1, 0);
+AudioConnection          patchCord9(playFlac, 1, i2s1, 1);
+AudioControlSGTL5000     sgtl5000_1;     //xy=240,153
+static int playFileType = 0;
 
 diskIO dioMB;  // One instance of diskIO.
 microBox microbox;
@@ -204,13 +203,10 @@ void microBox::ExecCommand() {
 
 void microBox::cmdParser() {
 	// Check for volume change.
-	if(playSdWav1.isPlaying()) {
-		// uncomment these lines if you audio shield
-		// has the optional volume pot soldered
-		float vol = analogRead(15);
-		vol = vol / 1024;
-		sgtl5000_1.volume(vol);
-	}
+	float vol = analogRead(15);
+	vol = vol / 1024;
+	sgtl5000_1.volume(vol);
+
     if(watchMode) {
         if(Serial.available()) {
             watchMode = false;
@@ -283,8 +279,30 @@ bool microBox::HandleEscSeq(unsigned char ch) {
         } else if(ch == 0x43) { // Cursor Right
         } else if(ch == 0x44) { // Cursor Left
         } else if(ch == 0x46) { // end key
-			if(playSdWav1.isPlaying())
-				playSdWav1.stop();
+			switch(playFileType) {
+				case 1:
+					if(playMp31.isPlaying())
+						playMp31.stop();
+					break;
+				case 2:
+					if(playWav.isPlaying())
+						playWav.stop();
+					break;
+				case 3:
+					if(playAac.isPlaying())
+						playAac.stop();
+					break;
+				case 4:
+					if(playRaw.isPlaying())
+						playRaw.stop();
+					break;
+				case 5:
+					if(playFlac.isPlaying())
+						playFlac.stop();
+					break;
+				default:
+					break;
+			}
 		}
         escSeq = ESC_STATE_NONE;
         ret = true;
@@ -752,20 +770,85 @@ void microBox::Echo(char **pParam, uint8_t parCnt) {
 
 void microBox::Play(char** pParam, uint8_t parCnt) {
 	char tempPath[256];
+	int errAudio = 0;
+	dioMB.setError(DISKIO_PASS); // Clear any existing error codes.
+	
 	if(pParam[0] == NULL) { // Invalid path spec.
+		dioMB.setError(INVALID_PATH_NAME); // Invalid Path Spec.
 		ErrorDir(F("play"));
 		return;
 	}	
 	strcpy(tempPath, pParam[0]); // Preserve path spec.
-	if(!dioMB.exists(tempPath)) {
-		ErrorDir(F("play"));
-		return;
+//	if(!dioMB.exists(tempPath)) {
+//		dioMB.setError(INVALID_PATH_NAME);
+//		ErrorDir(F("play"));
+//	}
+	playFileType = 0;
+	if (strstr(tempPath, ".MP3") != NULL || strstr(tempPath, ".mp3") != NULL) {
+		playFileType = 1;
+	} else if (strstr(tempPath, ".WAV") != NULL || strstr(tempPath, ".wav") != NULL ) {
+		playFileType = 2;
+	} else if (strstr(tempPath, ".AAC") != NULL || strstr(tempPath, ".aac") != NULL) {
+		playFileType = 3;
+	} else if (strstr(tempPath, ".RAW") != NULL || strstr(tempPath, ".raw") != NULL) {
+		playFileType = 4;
+	} else if (strstr(tempPath, ".FLA") != NULL || strstr(tempPath, ".fla") != NULL ) {
+		playFileType = 5;    
+	} else {
+		playFileType = 0;
 	}
 	Serial.printf("Playing: %s\r\n",tempPath);
-	if(!playSdWav1.play(tempPath)) {
-		ErrorDir(F("play"));
-		return;
-	}
+    switch (playFileType) {
+      case 1 :
+        errAudio = playMp31.play(dioMB.drvIdx[dioMB.getCDN()].fstype,tempPath);
+        if(errAudio != 0) {
+			playMp31.stop();
+			dioMB.setError(errAudio); // Invalid Path Spec.
+			ErrorDir(F("play"));
+			return;
+		}
+        break;
+      case 2 :
+		playWav.play(dioMB.drvIdx[dioMB.getCDN()].fstype,tempPath);
+		delay(100); // Workaround for wav file failure detection.
+        if(!playWav.isPlaying()) {
+			playWav.stop();
+ 			dioMB.setError(AUDIO_WAV_PLAY_ERR); // Invalid Path Spec.
+			ErrorDir(F("play"));
+			return;
+		}
+        break;
+      case 3 :
+        errAudio = playAac.play(dioMB.drvIdx[dioMB.getCDN()].fstype,tempPath);
+        if(errAudio != 0) {
+			playAac.stop();
+			dioMB.setError(errAudio); // Invalid Path Spec.
+			ErrorDir(F("play"));
+			return;
+		}
+        break;
+      case 4 :
+        errAudio = playRaw.play(dioMB.drvIdx[dioMB.getCDN()].fstype,tempPath);
+        if(errAudio != 0) {
+			playRaw.stop();
+			dioMB.setError(errAudio); // Invalid Path Spec.
+			ErrorDir(F("play"));
+			return;
+		}
+        break;
+      case 5:
+        errAudio = playFlac.play(dioMB.drvIdx[dioMB.getCDN()].fstype,tempPath);
+        if(errAudio != 0) {
+			playFlac.stop();
+			dioMB.setError(errAudio); // Invalid Path Spec.
+			ErrorDir(F("play"));
+			return;
+		}
+        break;
+      default:
+        break;
+    }
+	return;
 }
 
 uint8_t microBox::Play_int(char* pParam) {
@@ -963,6 +1046,7 @@ void microBox::cp(char** pParam, uint8_t parCnt) {
 	uint32_t cntr = 0;
 	uint32_t start = 0, finish = 0;
 	uint32_t bytesRW = 0;
+	float MegaBytes = 0;
 
 	File src; 
 	File dest; 
@@ -1020,7 +1104,7 @@ void microBox::cp(char** pParam, uint8_t parCnt) {
 		return;
 	}
 	finish = (micros() - start); // Get total copy time.
-	float MegaBytes = (bytesRW*1.0f)/(1.0f*finish);
+	MegaBytes = (bytesRW*1.0f)/(1.0f*finish);
 #if 1
 	Serial.printf("\nCopied %u bytes in %f seconds. Speed: %f MB/s\n",
 					bytesRW,(1.0*finish)/1000000.0,MegaBytes);

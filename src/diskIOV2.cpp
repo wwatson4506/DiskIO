@@ -47,7 +47,7 @@ char  pmsFS_display_name[CNT_MSC][20];
 
 msController *pdrives[] {&drive1, &drive2, &drive3, &drive4};
 #define CNT_DRIVES  (sizeof(pdrives)/sizeof(pdrives[0]))
-bool drive_previous_connected[CNT_DRIVES] = {false, false, false, false};
+bool drive_previous_connected[CNT_DRIVES+2] = {false, false, false, false, false, false};
 
 typedef struct {
   uint8_t csPin;
@@ -113,6 +113,7 @@ void diskIO::listAvailableDrives(print_t* p) {
 	count_mp = 0;
 	p->print(F("\r\nLogical Drive Information For Attached Drives\r\n"));
 	connectedMSCDrives();
+	
     for(uint8_t i = 0; i < CNT_PARITIONS; i++) {
 	if(drvIdx[i].valid) {
 		count_mp++;
@@ -157,9 +158,11 @@ void diskIO::connectedMSCDrives() {
   Serial.printf("connectedMSCDrives()...\r\n");
 #endif
   myusb.Task();
-
+  
   USBMSCDevice mscDrive;
-  PFsLib pfsLIB;
+  char tempName[32] = {};
+  
+  // Check for recently connected/disconnected drives.
   for (uint8_t i=0; i < CNT_DRIVES; i++) {
     if (*pdrives[i]) {
       if (!drive_previous_connected[i]) {
@@ -184,8 +187,8 @@ void diskIO::connectedMSCDrives() {
         drvIdx[i].ifaceType = USB_TYPE;
         drvIdx[i].valid = true;
       }
-    }
-    else if (!*pmsFS[i] && drvIdx[i].valid == true) {
+    } else if (!*pmsFS[i] && drvIdx[i].valid == true) {
+		// Device disconnected reset device descriptor.
 		drvIdx[i].fstype = nullptr;
 		drvIdx[i].valid = false;
 		drvIdx[i].name[0] = 0;
@@ -196,20 +199,90 @@ void diskIO::connectedMSCDrives() {
 		drvIdx[i].ifaceType = 0;
 		// Else find and setup next avaiable device.
 		findNextDrive();
-/*
-		for(uint8_t i = 0;  i < CNT_PARITIONS; i++) {
-			if(drvIdx[i].valid == true) {
-				currDrv = i;
-				changeVolume(currDrv);     // Change the volume to this logical drive.
-				sprintf(drvIdx[currDrv].fullPath,"/%s%s",drvIdx[currDrv].name, drvIdx[currDrv].currentPath);
-				break;
-			}
-		}
-*/
-    }
+    } else if(*pmsFS[i] && drvIdx[i].valid == true) {
+	  // Default drive changed to another device?
+	  // Then reload device descriptor with new parameters for device.
+	  pmsFS[i]->mscfs.getVolumeLabel(tempName, sizeof(tempName));
+      if(strcmp(tempName, drvIdx[i].name) != 0) {
+	    sprintf(drvIdx[i].name ,"%s", tempName);
+	    sprintf(drvIdx[i].fullPath ,"/%s/", drvIdx[i].name);
+		drvIdx[i].fstype = pmsFS[i];
+	    drvIdx[i].currentPath[0] = '\0';
+        drvIdx[i].fatType = pmsFS[i]->mscfs.fatType();
+        drvIdx[i].driveType = pmsFS[i]->mscfs.usbDrive()->usbType();
+        drvIdx[i].ifaceType = USB_TYPE;
+        drvIdx[i].valid = true;
+      }
+	}
   }
+  checkSDDrives();
 }
 
+void diskIO::checkSDDrives() {
+	// Check for recently connected/disconnected SD drives.
+	uint8_t slot = 0;
+	bool connected = false;
+
+	// Do first time begin() if not done yet.
+	for(uint8_t i = SLOT_OFFSET; i < 6; i++) {
+		if (!drive_previous_connected[i]) {
+			if (sdfs[i-SLOT_OFFSET].sd.begin(sdfs[i-SLOT_OFFSET].csPin)) {
+				drive_previous_connected[i] = true;
+			}
+		}
+	}
+	slot = LOGICAL_DRIVE_SDIO * SLOT_OFFSET;
+	connected = sdfs[0].sd.mediaPresent();
+//Serial.printf("sdfs[0].sd.mediaPresent() = %d\r\n", connected);
+    if (connected && drvIdx[slot].valid == false) {
+		drvIdx[slot].ldNumber = slot;
+		strcpy(drvIdx[slot].name, sdfs[0].name);
+		sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
+		drvIdx[slot].fstype = &sdfs[0].sd;
+		drvIdx[slot].currentPath[0] = '\0';
+		drvIdx[slot].fatType = sdfs[0].sd.sdfs.fatType();
+		drvIdx[slot].driveType = sdfs[0].sd.sdfs.card()->type();
+		drvIdx[slot].ifaceType = SDIO_TYPE;
+		drvIdx[slot].valid = true;
+    } else if (!connected && drvIdx[slot].valid == true) {
+		drvIdx[slot].fstype = nullptr;
+		drvIdx[slot].valid = false;
+		drvIdx[slot].name[0] = 0;
+		drvIdx[slot].currentPath[0] = 0;
+		drvIdx[slot].fullPath[0] = 0;
+		drvIdx[slot].driveType = 0;
+		drvIdx[slot].fatType = 0;
+		drvIdx[slot].ifaceType = 0;
+		// Else find and setup next avaiable device.
+		findNextDrive();
+    }
+	// Check External SPI Drive.
+	connected = sdfs[1].sd.mediaPresent();
+//Serial.printf("sdfs[1].sd.mediaPresent() = %d\r\n", connected);
+	slot = LOGICAL_DRIVE_SDSPI * SLOT_OFFSET;
+    if (connected && drvIdx[slot].valid == false) {
+		drvIdx[slot].ldNumber = slot;
+		strcpy(drvIdx[slot].name, sdfs[1].name);
+		sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
+		drvIdx[slot].fstype = &sdfs[1].sd;
+		drvIdx[slot].currentPath[1] = '\0';
+		drvIdx[slot].fatType = sdfs[1].sd.sdfs.fatType();
+		drvIdx[slot].driveType = sdfs[1].sd.sdfs.card()->type();
+		drvIdx[slot].ifaceType = SDIO_TYPE;
+		drvIdx[slot].valid = true;
+    } else if (!connected && drvIdx[slot].valid == true) {
+		drvIdx[slot].fstype = nullptr;
+		drvIdx[slot].valid = false;
+		drvIdx[slot].name[0] = 0;
+		drvIdx[slot].currentPath[0] = 0;
+		drvIdx[slot].fullPath[0] = 0;
+		drvIdx[slot].driveType = 0;
+		drvIdx[slot].fatType = 0;
+		drvIdx[slot].ifaceType = 0;
+		// Else find and setup next avaiable device.
+		findNextDrive();
+    }
+}
 
 //---------------------------------------------------------------------------
 // Create filesystem from path spec.
@@ -229,6 +302,11 @@ bool diskIO::mkfs(char *path, int fat_type) {
 	// Process path spec.  Return false if failed (-1).
 	if(processPathSpec(savePath)) {
 		// First check if we are using a LFS device.
+	if(fat_type < 0 || fat_type > 2) {
+		setError(FORMAT_ERROR);
+		goto Fail;
+	}
+#if defined(ARDUINO_TEENSY41)
 		if(drvIdx[currDrv].ifaceType == LFS_TYPE) {
 			if(!drvIdx[currDrv].valid) {
 				setError(LDRIVE_NOT_FOUND);
@@ -239,11 +317,14 @@ bool diskIO::mkfs(char *path, int fat_type) {
 				goto Fail;
 			}
 		} else {
+#endif
 			if(!drvIdx[currDrv].fstype->format(fat_type, '*', Serial)) {
 				setError(FORMAT_ERROR);
 				goto Fail;
 			}
+#if defined(ARDUINO_TEENSY41)
 		}
+#endif
 	}
 Fail:
 	if(currDrv != drive) {
@@ -278,8 +359,9 @@ bool diskIO::init() {
 	// Process MSC drives (4 MAX).
 	connectedMSCDrives(); // Modified version of KurtE's version.
 	// Initialize SD drives (SDIO and SPI).
-	processSDDrive();
-	ProcessSPISD();
+//	processSDDrive();
+//	checkSDDrives();
+//	ProcessSPISD();
 #if defined(ARDUINO_TEENSY41)
 	ProcessLFS(LFS_DRIVE_QPINAND, "QPINAND");
 	ProcessLFS(LFS_DRIVE_QSPIFLASH, "QSPIFLASH");
@@ -305,9 +387,7 @@ bool diskIO::processSDDrive(void)
 #ifdef TalkToMe
   Serial.printf(F("Initialize SDIO SD card...\r\n"));
 #endif
-
   if (!sdfs[0].sd.begin(sdfs[0].csPin)) return false; // SDIO Not available
-
   uint8_t slot = LOGICAL_DRIVE_SDIO * SLOT_OFFSET;
   drvIdx[slot].ldNumber = slot;
   strcpy(drvIdx[slot].name, sdfs[0].name);
@@ -686,6 +766,17 @@ uint8_t diskIO::getCDN(void) {
 #endif
 	connectedMSCDrives();
 	return currDrv;
+}
+
+//------------------------------------------
+// Set current working logical drive number.
+//------------------------------------------
+void diskIO::setCDN(uint8_t drive) {
+#ifdef TalkToMe
+  Serial.printf("setCDN(%d)\r\n",drive);
+#endif
+	currDrv = drive;
+	connectedMSCDrives();
 }
 
 //---------------------------------------------------------
@@ -1072,7 +1163,7 @@ bool diskIO::rmdir(char *dirPath) {
 	strcpy(savePath,dirPath);
 	// Process path spec.  Return false if failed (-1).
 	if(processPathSpec(savePath)) {
-		if(!drvIdx[currDrv].fstype->rmdir(savePath)) setError(MKDIR_ERROR);
+		if(!drvIdx[currDrv].fstype->rmdir(savePath)) setError(RMDIR_ERROR);
 	}
 	if(currDrv != drive) {
 		changeVolume(drive); // Change back to original logical drive. If changed.
