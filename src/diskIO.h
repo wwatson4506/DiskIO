@@ -81,7 +81,7 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 
 #define ifLower(c) ((c) >= 'a' && (c) <= 'z')
 
-#define USE_TFT	//Uncomment this to use with RA8876 TFT. 
+//#define USE_TFT	//Uncomment this to use with RA8876 TFT. 
 
 // Logical drive device descriptor struct based on partitions.
 // Some of the entries are probably redundant a this point.
