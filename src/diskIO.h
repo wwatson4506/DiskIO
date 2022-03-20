@@ -55,7 +55,7 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 #define LFS_TYPE	5
 #endif
 
-// Four partition slot per physical device
+// Four partition slots per physical device
 #define SLOT_OFFSET 4
 
 // Error codes
@@ -81,7 +81,7 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 
 #define ifLower(c) ((c) >= 'a' && (c) <= 'z')
 
-//#define USE_TFT	//Uncomment this to use with RA8876 TFT. 
+#define USE_TFT	//Uncomment this to use with RA8876 TFT. 
 
 // Logical drive device descriptor struct based on partitions.
 // Some of the entries are probably redundant a this point.
@@ -117,12 +117,12 @@ public:
 	int  changeDrive(char *driveSpec);
 	void changeVolume(uint8_t volume);
 	bool chdir(const char *dirPath);
-	bool mkdir(char *path);
-	bool rmdir(char *dirPath);
-	bool rm(char *dirPath);
-	bool exists(char *dirPath);
-	bool rename(char *oldpath, char *newpath);
-	bool open(File *fp, char* dirPath, oflag_t oflag = O_RDONLY);
+	bool mkdir(const char *path);
+	bool rmdir(const char *dirPath);
+	bool rm(const char *dirPath);
+	bool exists(const char *dirPath);
+	bool rename(const char *oldpath, const char *newpath);
+	bool open(File *fp, const char* dirPath, oflag_t oflag = O_RDONLY);
 	bool close(File *fp);
 	int  read(File *fp, void *buf, size_t count);
 	size_t  write(File *fp, void *buf, size_t count);
@@ -140,17 +140,17 @@ public:
 	char *dirName(const char *path);
 	char *baseName(const char *path);
 
-	bool parsePathSpec(char *pathSpec);
+	bool parsePathSpec(const char *pathSpec);
 	bool getWildCard(char *specs, char *pattern);
 	bool wildcardMatch(const char *pattern, const char *filename);
 	void displayDateTime(uint16_t date, uint16_t time);
-	bool lsDir(char *);
+	bool lsDir(const char *);
 	bool lsSubDir(void *dir);
-	bool openDir(char *pathSpec);
+	bool openDir(const char *pathSpec);
 	bool readDir(File *entry, char *dirEntry);
 	void closeDir(File *entry);
 	void printSpaces(int num);
-	bool lsFiles(void *dir, char *pattern, bool wc);
+	bool lsFiles(void *dir, const char *pattern, bool wc);
 	uint8_t getCDN(void);
 	void setCDN(uint8_t drive);
 	char *cwd(void);

@@ -619,7 +619,7 @@ char *diskIO::baseName(const char *path) {
 //------------------------------------------------------
 // Parse the path spec. Handle ".", ".." and "../" OP's
 //------------------------------------------------------
-bool diskIO::parsePathSpec(char *pathSpec) {
+bool diskIO::parsePathSpec(const char *pathSpec) {
 #ifdef TalkToMe
     Serial.printf(F("parsePathSpec(%s)\r\n"),pathSpec);
 #endif
@@ -969,7 +969,7 @@ void diskIO::displayDateTime(uint16_t date, uint16_t time) {
 
 // List a directory from given path. Can include a volume name delimited with '/'
 // '/name/' at the begining of path string.
-bool diskIO::lsDir(char *dirPath) {
+bool diskIO::lsDir(const char *dirPath) {
 #ifdef TalkToMe
   Serial.printf(F("lsDir %s...\r\n"), dirPath);
 #endif
@@ -1065,18 +1065,13 @@ bool diskIO::lsSubDir(void *dir) {
 }
 
 // List files only. Proccess wildcards if specified.
-bool diskIO::lsFiles(void *dir, char *pattern, bool wc) {
+bool diskIO::lsFiles(void *dir, const char *pattern, bool wc) {
 #ifdef TalkToMe
   Serial.printf(F("lsFiles()...\r\n"));
 #endif
     DateTimeFields tm;
-//	const char *months[12] = {
-//		"January","February","March","April","May","June",
-//		"July","August","September","October","November","December"
-//	};
 	File fsDirEntry;
 	File *fsDir = reinterpret_cast < File * > ( dir );
-	
 	uint8_t spacing = NUMSPACES;
 	 	
 	fsDir->rewindDirectory(); // Start at beginning of directory.
@@ -1130,7 +1125,7 @@ void diskIO::page(void) {
 }
 
 // Open a dirctory and set a File pointer to it.
-bool diskIO::openDir(char *pathSpec) {
+bool diskIO::openDir(const char *pathSpec) {
 //	char savePath[256];
 	savePath[0] = 0;
 
@@ -1171,7 +1166,7 @@ void diskIO::closeDir(File *entry) {
 // Test for existance of file or directory.
 // Will fail if directory/file does not exist or is an invald path spec.
 //---------------------------------------------------------------------------
-bool diskIO::exists(char *dirPath) {
+bool diskIO::exists(const char *dirPath) {
 #ifdef TalkToMe
   Serial.printf("exists(%s)\r\n", dirPath);
 #endif
@@ -1203,7 +1198,7 @@ bool diskIO::exists(char *dirPath) {
 // Create directory from path spec.
 // Will fail if directory exists or is an invald path spec.
 //---------------------------------------------------------------------------
-bool diskIO::mkdir(char *path) {
+bool diskIO::mkdir(const char *path) {
 #ifdef TalkToMe
     Serial.printf(F("mkdir(%s)\r\n"),path);
 #endif
@@ -1232,7 +1227,7 @@ bool diskIO::mkdir(char *path) {
 // Remove directory from path spec.
 // Will fail if directory does not exist or is an invald path spec.
 //---------------------------------------------------------------------------
-bool diskIO::rmdir(char *dirPath) {
+bool diskIO::rmdir(const char *dirPath) {
 #ifdef TalkToMe
     Serial.printf(F("rmdir(%s)\r\n"),dirPath);
 #endif
@@ -1260,7 +1255,7 @@ bool diskIO::rmdir(char *dirPath) {
 // Remove a file from path spec.
 // Will fail if file does not exist or is an invald path spec.
 //---------------------------------------------------------------------------
-bool diskIO::rm(char *dirPath) {
+bool diskIO::rm(const char *dirPath) {
 #ifdef TalkToMe
     Serial.printf(F("rm(%s)\r\n"),dirPath);
 #endif
@@ -1288,7 +1283,7 @@ bool diskIO::rm(char *dirPath) {
 // Rename file or directory.
 // Will fail if directory/file does not exist or is an invald path spec.
 //---------------------------------------------------------------------------
-bool diskIO::rename(char *oldpath, char *newpath) {
+bool diskIO::rename(const char *oldpath, const char *newpath) {
 #ifdef TalkToMe
 	Serial.printf(F("rename(%s,%s)\r\n"),oldpath, newpath);
 #endif
@@ -1317,7 +1312,7 @@ bool diskIO::rename(char *oldpath, char *newpath) {
 //---------------------------------------------------------------------------
 // Open file or directory.
 //---------------------------------------------------------------------------
-bool diskIO::open(File *fp, char* dirPath, oflag_t oflag) {
+bool diskIO::open(File *fp, const char* dirPath, oflag_t oflag) {
 #ifdef TalkToMe
 	Serial.printf(F("open()\r\n"));
 #endif
