@@ -6,15 +6,19 @@
 #include "Arduino.h"
 #include "diskIO.h"
 #include "Arduino.h"
-//#include "mscFS.h"
 #include "TimeLib.h"
+
+#ifdef USE_TFT
+#include "io.h"
+extern RA8876_t3 tft;
+#endif
 
 // Setup USBHost_t36 and as many HUB ports as needed.
 USBHost myusb;
 USBHub hub1(myusb);
-USBHub hub2(myusb);
-USBHub hub3(myusb);
-USBHub hub4(myusb);
+//USBHub hub2(myusb);
+//USBHub hub3(myusb);
+//USBHub hub4(myusb);
 
 // MSC objects.
 msController drive1(myusb);
@@ -39,6 +43,8 @@ msFilesystem msFS14(myusb);
 msFilesystem msFS15(myusb);
 msFilesystem msFS16(myusb);
 
+static	uint8_t lncnt = 0;
+
 // Quick and dirty
 msFilesystem *pmsFS[] = {&msFS1, &msFS2, &msFS3, &msFS4, &msFS5, &msFS6, &msFS7, &msFS8,
 						 &msFS9, &msFS10, &msFS11, &msFS12, &msFS13, &msFS14, &msFS15, &msFS16};
@@ -62,6 +68,8 @@ SDList_t sdfs[] = {
 
 static uint8_t mscError = DISKIO_PASS;
 
+File root;
+
 //------------------------------------------------------------------------
 // Call back for file timestamps.  Only called for file create and sync().
 // Modified for use with timeLib.h.
@@ -77,7 +85,7 @@ void dateTime(uint16_t* date, uint16_t* time, uint8_t* ms10) {
 }
 
 // -------------------------------------
-// Return last error for last operation.
+// Return error for last operation.
 // -------------------------------------
 uint8_t diskIO::error(void) {
 	uint8_t error = mscError;
@@ -86,7 +94,7 @@ uint8_t diskIO::error(void) {
 }
 
 // -----------------------------------
-// Set an DISK IO error code.
+// Set a DISK IO error code.
 // -----------------------------------
 void diskIO::setError(uint8_t error) {
 	mscError = error; // Set error code.
@@ -97,8 +105,8 @@ void diskIO::setError(uint8_t error) {
 // -----------------------------------
 void diskIO::findNextDrive(void) {
 	for(uint8_t i = 0;  i < CNT_PARITIONS; i++) {
-		if(drvIdx[i].valid == true) {
-			currDrv = i;
+		if(drvIdx[i+SLOT_OFFSET].valid == true) {
+			currDrv = i + SLOT_OFFSET;
 			changeVolume(currDrv);     // Change the volume to this logical drive.
 			sprintf(drvIdx[currDrv].fullPath,"/%s%s",drvIdx[currDrv].name, drvIdx[currDrv].currentPath);
 			break;
@@ -111,7 +119,7 @@ void diskIO::findNextDrive(void) {
 //--------------------------------------------------------------
 void diskIO::listAvailableDrives(print_t* p) {
 	count_mp = 0;
-	p->print(F("\r\nLogical Drive Information For Attached Drives\r\n"));
+	p->printf(F("\r\nLogical Drive Information For Attached Drives\r\n"));
 	connectedMSCDrives();
 	
     for(uint8_t i = 0; i < CNT_PARITIONS; i++) {
@@ -144,8 +152,8 @@ void diskIO::listAvailableDrives(print_t* p) {
 		}
 	}
   }
-  Serial.printf("%d Logical Drives Found\r\n",count_mp);
-  Serial.printf("Default Logical Drive: /%s/ (%d:)\r\n",drvIdx[currDrv].name,drvIdx[currDrv].ldNumber);
+  Serial.printf(F("%d Logical Drives Found\r\n"),count_mp);
+  Serial.printf(F("Default Logical Drive: /%s/ (%d:)\r\n"),drvIdx[currDrv].name,drvIdx[currDrv].ldNumber);
 }
 
 //------------------------------------------------------
@@ -155,7 +163,7 @@ void diskIO::listAvailableDrives(print_t* p) {
 //------------------------------------------------------
 void diskIO::connectedMSCDrives() {
 #ifdef TalkToMe
-  Serial.printf("connectedMSCDrives()...\r\n");
+  Serial.printf(F("connectedMSCDrives()...\r\n"));
 #endif
   myusb.Task();
   
@@ -174,54 +182,71 @@ void diskIO::connectedMSCDrives() {
       drive_previous_connected[i] = false;
     }
   }
-  for (uint8_t i = 0; i < CNT_MSC; i++) {
-	drvIdx[i].ldNumber = i;
-    if (*pmsFS[i] && drvIdx[i].valid == false) {
+ for (uint8_t i = 0; i < CNT_MSC; i++) {
+	drvIdx[i+SLOT_OFFSET].ldNumber = i+SLOT_OFFSET;
+    if (*pmsFS[i] && drvIdx[i+SLOT_OFFSET].valid == false) {
       // Lets see if we can get the volume label:
-      if (pmsFS[i]->mscfs.getVolumeLabel(drvIdx[i].name, sizeof(drvIdx[i].name))) {
-	    sprintf(drvIdx[i].fullPath ,"/%s/", drvIdx[i].name);
-		drvIdx[i].fstype = pmsFS[i];
-	    drvIdx[i].currentPath[0] = '\0';
-        drvIdx[i].fatType = pmsFS[i]->mscfs.fatType();
-        drvIdx[i].driveType = pmsFS[i]->mscfs.usbDrive()->usbType();
-        drvIdx[i].ifaceType = USB_TYPE;
-        drvIdx[i].valid = true;
+      if (pmsFS[i]->mscfs.getVolumeLabel(drvIdx[i+SLOT_OFFSET].name, sizeof(drvIdx[i+SLOT_OFFSET].name))) {
+	    sprintf(drvIdx[i+SLOT_OFFSET].fullPath ,"/%s/", drvIdx[i+SLOT_OFFSET].name);
+		drvIdx[i+SLOT_OFFSET].fstype = pmsFS[i];
+	    drvIdx[i+SLOT_OFFSET].currentPath[0] = '\0';
+        drvIdx[i+SLOT_OFFSET].fatType = pmsFS[i]->mscfs.fatType();
+        drvIdx[i+SLOT_OFFSET].driveType = pmsFS[i]->mscfs.usbDrive()->usbType();
+        drvIdx[i+SLOT_OFFSET].ifaceType = USB_TYPE;
+        drvIdx[i+SLOT_OFFSET].valid = true;
       }
-    } else if (!*pmsFS[i] && drvIdx[i].valid == true) {
+    } else if (!*pmsFS[i] && drvIdx[i+SLOT_OFFSET].valid == true) {
 		// Device disconnected reset device descriptor.
-		drvIdx[i].fstype = nullptr;
-		drvIdx[i].valid = false;
-		drvIdx[i].name[0] = 0;
-		drvIdx[i].currentPath[0] = 0;
-		drvIdx[i].fullPath[0] = 0;
-		drvIdx[i].driveType = 0;
-		drvIdx[i].fatType = 0;
-		drvIdx[i].ifaceType = 0;
+		drvIdx[i+SLOT_OFFSET].fstype = nullptr;
+		drvIdx[i+SLOT_OFFSET].valid = false;
+		drvIdx[i+SLOT_OFFSET].ldNumber = 0;
+		drvIdx[i+SLOT_OFFSET].name[0] = 0;
+		drvIdx[i+SLOT_OFFSET].currentPath[0] = 0;
+		drvIdx[i+SLOT_OFFSET].fullPath[0] = 0;
+		drvIdx[i+SLOT_OFFSET].driveType = 0;
+		drvIdx[i+SLOT_OFFSET].fatType = 0;
+		drvIdx[i+SLOT_OFFSET].ifaceType = 0;
 		// Else find and setup next avaiable device.
 		findNextDrive();
-    } else if(*pmsFS[i] && drvIdx[i].valid == true) {
+    } else if(*pmsFS[i] && drvIdx[i+SLOT_OFFSET].valid == true) {
 	  // Default drive changed to another device?
 	  // Then reload device descriptor with new parameters for device.
 	  pmsFS[i]->mscfs.getVolumeLabel(tempName, sizeof(tempName));
-      if(strcmp(tempName, drvIdx[i].name) != 0) {
-	    sprintf(drvIdx[i].name ,"%s", tempName);
-	    sprintf(drvIdx[i].fullPath ,"/%s/", drvIdx[i].name);
-		drvIdx[i].fstype = pmsFS[i];
-	    drvIdx[i].currentPath[0] = '\0';
-        drvIdx[i].fatType = pmsFS[i]->mscfs.fatType();
-        drvIdx[i].driveType = pmsFS[i]->mscfs.usbDrive()->usbType();
-        drvIdx[i].ifaceType = USB_TYPE;
-        drvIdx[i].valid = true;
+      if(strcmp(tempName, drvIdx[i+SLOT_OFFSET].name) != 0) {
+	    sprintf(drvIdx[i+SLOT_OFFSET].name ,"%s", tempName);
+	    sprintf(drvIdx[i+SLOT_OFFSET].fullPath ,"/%s/", drvIdx[i+SLOT_OFFSET].name);
+		drvIdx[i+SLOT_OFFSET].fstype = pmsFS[i];
+	    drvIdx[i+SLOT_OFFSET].currentPath[0] = '\0';
+        drvIdx[i+SLOT_OFFSET].fatType = pmsFS[i]->mscfs.fatType();
+        drvIdx[i+SLOT_OFFSET].driveType = pmsFS[i]->mscfs.usbDrive()->usbType();
+        drvIdx[i+SLOT_OFFSET].ifaceType = USB_TYPE;
+        drvIdx[i+SLOT_OFFSET].valid = true;
       }
 	}
+
   }
-  checkSDDrives();
+//  checkSDDrives(); // Really Slows things down!!!
 }
 
+void diskIO::initSDDrive(uint8_t sdDrive) {
+	uint8_t slot = LOGICAL_DRIVE_SDIO;
+	if(sdDrive == 1) slot = LOGICAL_DRIVE_SDSPI;
+	drvIdx[slot].ldNumber = slot;
+	strcpy(drvIdx[slot].name, sdfs[sdDrive].name);
+	sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
+	drvIdx[slot].fstype = &sdfs[sdDrive].sd;
+	drvIdx[slot].currentPath[0] = '\0';
+	drvIdx[slot].fatType = sdfs[sdDrive].sd.sdfs.fatType();
+	drvIdx[slot].driveType = sdfs[sdDrive].sd.sdfs.card()->type();
+	drvIdx[slot].ifaceType = SDIO_TYPE;
+	drvIdx[slot].valid = true;
+}
+
+// Check for recently connected/disconnected SD drives.
 void diskIO::checkSDDrives() {
-	// Check for recently connected/disconnected SD drives.
-	uint8_t slot = 0;
-	bool connected = false;
+#ifdef TalkToMe
+  Serial.printf(F("checkSDDrives()...\r\n"));
+#endif
 
 	// Do first time begin() if not done yet.
 	for(uint8_t i = SLOT_OFFSET; i < 6; i++) {
@@ -231,57 +256,7 @@ void diskIO::checkSDDrives() {
 			}
 		}
 	}
-	slot = LOGICAL_DRIVE_SDIO * SLOT_OFFSET;
-	connected = sdfs[0].sd.mediaPresent();
-//Serial.printf("sdfs[0].sd.mediaPresent() = %d\r\n", connected);
-    if (connected && drvIdx[slot].valid == false) {
-		drvIdx[slot].ldNumber = slot;
-		strcpy(drvIdx[slot].name, sdfs[0].name);
-		sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
-		drvIdx[slot].fstype = &sdfs[0].sd;
-		drvIdx[slot].currentPath[0] = '\0';
-		drvIdx[slot].fatType = sdfs[0].sd.sdfs.fatType();
-		drvIdx[slot].driveType = sdfs[0].sd.sdfs.card()->type();
-		drvIdx[slot].ifaceType = SDIO_TYPE;
-		drvIdx[slot].valid = true;
-    } else if (!connected && drvIdx[slot].valid == true) {
-		drvIdx[slot].fstype = nullptr;
-		drvIdx[slot].valid = false;
-		drvIdx[slot].name[0] = 0;
-		drvIdx[slot].currentPath[0] = 0;
-		drvIdx[slot].fullPath[0] = 0;
-		drvIdx[slot].driveType = 0;
-		drvIdx[slot].fatType = 0;
-		drvIdx[slot].ifaceType = 0;
-		// Else find and setup next avaiable device.
-		findNextDrive();
-    }
-	// Check External SPI Drive.
-	connected = sdfs[1].sd.mediaPresent();
-//Serial.printf("sdfs[1].sd.mediaPresent() = %d\r\n", connected);
-	slot = LOGICAL_DRIVE_SDSPI * SLOT_OFFSET;
-    if (connected && drvIdx[slot].valid == false) {
-		drvIdx[slot].ldNumber = slot;
-		strcpy(drvIdx[slot].name, sdfs[1].name);
-		sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
-		drvIdx[slot].fstype = &sdfs[1].sd;
-		drvIdx[slot].currentPath[1] = '\0';
-		drvIdx[slot].fatType = sdfs[1].sd.sdfs.fatType();
-		drvIdx[slot].driveType = sdfs[1].sd.sdfs.card()->type();
-		drvIdx[slot].ifaceType = SDIO_TYPE;
-		drvIdx[slot].valid = true;
-    } else if (!connected && drvIdx[slot].valid == true) {
-		drvIdx[slot].fstype = nullptr;
-		drvIdx[slot].valid = false;
-		drvIdx[slot].name[0] = 0;
-		drvIdx[slot].currentPath[0] = 0;
-		drvIdx[slot].fullPath[0] = 0;
-		drvIdx[slot].driveType = 0;
-		drvIdx[slot].fatType = 0;
-		drvIdx[slot].ifaceType = 0;
-		// Else find and setup next avaiable device.
-		findNextDrive();
-    }
+	
 }
 
 //---------------------------------------------------------------------------
@@ -294,7 +269,7 @@ bool diskIO::mkfs(char *path, int fat_type) {
 #endif
 	setError(DISKIO_PASS); // Clear any existing error codes.
  	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
-	char savePath[256];
+//	char savePath[256];
 	savePath[0] = 0;
 	
     // Preserve original path spec. Should only change if chdir() is used.	
@@ -359,16 +334,17 @@ bool diskIO::init() {
 	// Process MSC drives (4 MAX).
 	connectedMSCDrives(); // Modified version of KurtE's version.
 	// Initialize SD drives (SDIO and SPI).
-//	processSDDrive();
-//	checkSDDrives();
-//	ProcessSPISD();
+	if(sdfs[0].sd.begin(sdfs[0].csPin)) initSDDrive(0);
+	if(sdfs[1].sd.begin(sdfs[1].csPin)) initSDDrive(1);
+
+	
 #if defined(ARDUINO_TEENSY41)
-	ProcessLFS(LFS_DRIVE_QPINAND, "QPINAND");
-	ProcessLFS(LFS_DRIVE_QSPIFLASH, "QSPIFLASH");
-	ProcessLFS(LFS_DRIVE_QPINOR5, "SPIFLASH5");
-	ProcessLFS(LFS_DRIVE_QPINOR6, "SPIFLASH6");
-	ProcessLFS(LFS_DRIVE_SPINAND3, "SPINAND3");
-	ProcessLFS(LFS_DRIVE_SPINAND4, "SPINAND4");
+	ProcessLFS(LFS_DRIVE_QPINAND, (const char *)"QPINAND");
+	ProcessLFS(LFS_DRIVE_QSPIFLASH, (const char *)"QSPIFLASH");
+	ProcessLFS(LFS_DRIVE_QPINOR5, (const char *)"SPIFLASH5");
+	ProcessLFS(LFS_DRIVE_QPINOR6, (const char *)"SPIFLASH6");
+	ProcessLFS(LFS_DRIVE_SPINAND3, (const char *)"SPINAND3");
+	ProcessLFS(LFS_DRIVE_SPINAND4, (const char *)"SPINAND4");
 #endif	
 
 //	if(chdir((char *)"0:"))
@@ -388,7 +364,7 @@ bool diskIO::processSDDrive(void)
   Serial.printf(F("Initialize SDIO SD card...\r\n"));
 #endif
   if (!sdfs[0].sd.begin(sdfs[0].csPin)) return false; // SDIO Not available
-  uint8_t slot = LOGICAL_DRIVE_SDIO * SLOT_OFFSET;
+  uint8_t slot = LOGICAL_DRIVE_SDIO;// * SLOT_OFFSET;
   drvIdx[slot].ldNumber = slot;
   strcpy(drvIdx[slot].name, sdfs[0].name);
   sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
@@ -412,7 +388,7 @@ bool diskIO::ProcessSPISD(void) {
 
   if (!sdfs[1].sd.begin(sdfs[1].csPin)) return false; // SDSPI Not available
 
-  uint8_t slot = LOGICAL_DRIVE_SDSPI * SLOT_OFFSET;
+  uint8_t slot = LOGICAL_DRIVE_SDSPI;// * SLOT_OFFSET;
   drvIdx[slot].ldNumber = slot;
   strcpy(drvIdx[slot].name, sdfs[1].name);
   sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
@@ -475,7 +451,7 @@ bool diskIO::ProcessLFS(uint8_t drive_number, const char *name) {
 	default:
 		return false;
   }
-  drvIdx[slot].ldNumber = slot;
+//  drvIdx[slot].ldNumber = slot+SLOT_OFFSET;
   strcpy(drvIdx[slot].name, name);
   sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
   drvIdx[slot].currentPath[0] = '\0';
@@ -505,7 +481,7 @@ uint8_t diskIO:: getVolumeCount(void) {
 // volume label. Processes both '/volume name/' and 'n:' drive specs.
 // If an invalid path spec or none existent drive then set mscError code.
 // ----------------------------------------------------------------------------
-int diskIO::getLogicalDriveNumber(char *path) {
+int diskIO::getLogicalDriveNumber(const char *path) {
 #ifdef TalkToMe
   Serial.printf("getLogicalDriveNumber(%s)\r\n", path);
 #endif
@@ -514,7 +490,7 @@ int diskIO::getLogicalDriveNumber(char *path) {
 	char tempChar, ldNumber[256];
 	const char *strPtr;
 	char pathChar;
-	int i = 0, volume = -1;
+	int i = SLOT_OFFSET, volume = -1;
 	uint8_t cntDigits = 0;
 	connectedMSCDrives();
 	setError(DISKIO_PASS); // Clear existing error code (if any)
@@ -544,7 +520,7 @@ int diskIO::getLogicalDriveNumber(char *path) {
 		if (i < CNT_PARITIONS) {	// Don't overrun device descriptor array.
 			volume = i;		// Found valid volume. Return index number.
 			ldNumber[cntDigits] = '/';  // Change ':' to '/'.
-			sprintf(path, "%s", ldNumber+cntDigits);	// Strip off the drive number.
+			sprintf((char *)path, "%s", ldNumber+cntDigits);	// Strip off the drive number.
 			// Make sure device is still connected (USB only at this time).
 			if(drvIdx[i].fstype == nullptr) {
 				setError(LDRIVE_NOT_FOUND); // Error number 252.
@@ -573,7 +549,7 @@ int diskIO::getLogicalDriveNumber(char *path) {
 		// If a volume label is found, get the drive number and strip label from path.
 		if (i < CNT_PARITIONS) {	// Don't overrun device descriptor array.
 			volume = i;		// Found valid volume. Return index number.
-			strcpy(path, tempPath); // Strip off the logical drive name (leave last '/').
+			strcpy((char *)path, tempPath); // Strip off the logical drive name (leave last '/').
 			// Make sure device is still connected (USB only at this time).
 			if(drvIdx[i].fstype == nullptr) {
 				setError(LDRIVE_NOT_FOUND); // Error number 252.
@@ -585,9 +561,9 @@ int diskIO::getLogicalDriveNumber(char *path) {
 			return -1;
 		}
 	} 
-	// Make sure current device is still connected (USB only at this time).
-	if(drvIdx[i].fstype == nullptr) {
-		setError(LDRIVE_NOT_FOUND); // Error number 253.
+	// Make sure current device is still connected.
+	if(drvIdx[currDrv].fstype == nullptr) {
+		setError(DEVICE_NOT_CONNECTED); // Error number 253.
 		return -1; // Indicate failure. Device not connected.
 	}
 	return currDrv;	// Return default logical drive. (No Drive spec given) 
@@ -615,9 +591,38 @@ int diskIO::isDriveSpec(char *driveSpec, bool preservePath) {
 }
 
 //------------------------------------------------------
+// Parse out the the directory chain.
+//------------------------------------------------------
+char *diskIO::dirName(const char *path) {
+	char dirpath[256];
+	char *dirchain = NULL;
+	char *basename = NULL;
+	
+	strcpy(dirpath,path);
+	basename = strrchr(path, '/');
+	dirchain = strndup(dirpath, strlen(dirpath) - (strlen(basename)));
+	return dirchain;
+}
+
+//------------------------------------------------------
+// Parse out the filename.
+//------------------------------------------------------
+char *diskIO::baseName(const char *path) {
+	char dirpath[256];
+	char *basename = NULL; 
+
+	strcpy(dirpath,path);
+	basename = strrchr(dirpath, '/');
+	return basename+1; // Strip leading '/'.
+}
+
+//------------------------------------------------------
 // Parse the path spec. Handle ".", ".." and "../" OP's
 //------------------------------------------------------
-bool diskIO::parsePathSpec(const char *pathSpec) {
+bool diskIO::parsePathSpec(char *pathSpec) {
+#ifdef TalkToMe
+    Serial.printf(F("parsePathSpec(%s)\r\n"),pathSpec);
+#endif
 	char pathOut[256] = {""};
     if(!relPathToAbsPath(pathSpec, pathOut, 256)) return false;
 	strcpy((char *)pathSpec,pathOut);
@@ -630,7 +635,7 @@ void diskIO::changeVolume(uint8_t volume) {
 #endif
 	switch(drvIdx[volume].ifaceType) {
 		case USB_TYPE:
-			pmsFS[volume]->mscfs.chvol(); // Change the volume logical USB drive.
+			pmsFS[volume-SLOT_OFFSET]->mscfs.chvol(); // Change the volume logical USB drive.
 			break;
 		case SDIO_TYPE:
 			sdfs[0].sd.sdfs.chvol(); // Change the volume logical USB drive.
@@ -672,6 +677,7 @@ bool diskIO::processPathSpec(char *path) {
 #endif
  	int ldNum = 0;
 	char tempPath[256];
+	tempPath[0] = 0;
 	// Check for a drive spec. 
 	// Return -1 if failed or logical drive number.
 	ldNum = isDriveSpec(path, false);
@@ -696,14 +702,13 @@ bool diskIO::processPathSpec(char *path) {
 // Change directory.
 // param in: "path name". Also processes drive spec and changes drives.
 //---------------------------------------------------------------------------
-bool diskIO::chdir(char *dirPath) {
+bool diskIO::chdir(const char *dirPath) {
 #ifdef TalkToMe
   Serial.printf("chdir(%s)\r\n", dirPath);
 #endif
 	setError(DISKIO_PASS); // Clear any existing error codes.
 	char tempPath[256];
 	char path[256];
-
 	strcpy(path,dirPath); // Isolate original path pointer from changes below.
 	// Check if we are changing to the root directory.
 	if((strlen(path) == 1) && (path[0] == '/')) { // Yes, 
@@ -737,7 +742,7 @@ bool diskIO::chdir(char *dirPath) {
 #endif
 	switch(drvIdx[currDrv].ifaceType) {
 		case USB_TYPE:
-			if(!pmsFS[currDrv]->mscfs.chdir((const char *)tempPath))
+			if(!pmsFS[currDrv-SLOT_OFFSET]->mscfs.chdir((const char *)tempPath))
 			return false;
 			sprintf(drvIdx[currDrv].currentPath, "%s", tempPath);
 			break;
@@ -874,7 +879,7 @@ bool diskIO::relPathToAbsPath(const char *path_in, char * path_out, int outLen)
 // ---------------------------------------------------------
 bool diskIO::wildcardMatch(const char *pattern, const char *filename) {
 #ifdef TalkToMe
-  Serial.printf("wildcardMatch(%s,%s)\r\n",pattern, filename);
+  Serial.printf(F("wildcardMatch(%s,%s)\r\n"),pattern, filename);
 #endif
   const char *charPointer = 0;
   const char *matchPointer = 0;
@@ -912,7 +917,7 @@ bool diskIO::wildcardMatch(const char *pattern, const char *filename) {
 bool diskIO::getWildCard(char *specs, char *pattern)
 {
 #ifdef TalkToMe
-  Serial.printf("getWildCard(%s,%s)\r\n", specs, pattern);
+  Serial.printf(F("getWildCard(%s,%s)\r\n"), specs, pattern);
 #endif
 	int index, count, len, i;
 	len = strlen(specs);
@@ -936,19 +941,20 @@ bool diskIO::getWildCard(char *specs, char *pattern)
 		return false;
 }
 
+const char *months[12] PROGMEM = {
+	"January","February","March","April","May","June",
+	"July","August","September","October","November","December"
+};
+
 //------------------------------------------------------------------------------
 // Directory Listing functions.
 //------------------------------------------------------------------------------
 // Display file date and time. (SD/MSC)
 void diskIO::displayDateTime(uint16_t date, uint16_t time) {
 #ifdef TalkToMe
-  Serial.printf("displayDateTime(%d,%d)\r\n", date, time);
+  Serial.printf(F("displayDateTime(%d,%d)\r\n"), date, time);
 #endif
     DateTimeFields tm;
-	const char *months[12] = {
-		"January","February","March","April","May","June",
-		"July","August","September","October","November","December"
-	};
 					tm.sec = FS_SECOND(time);
 					tm.min = FS_MINUTE(time);
 					tm.hour = FS_HOUR(time);
@@ -965,14 +971,15 @@ void diskIO::displayDateTime(uint16_t date, uint16_t time) {
 // '/name/' at the begining of path string.
 bool diskIO::lsDir(char *dirPath) {
 #ifdef TalkToMe
-  Serial.printf("lsDir %s...\r\n", dirPath);
+  Serial.printf(F("lsDir %s...\r\n"), dirPath);
 #endif
 	File dir; // SD, MSCFS.
 
-	char savePath[256];
+//	char savePath[256];
 	savePath[0] = 0;
 	char pattern[256];
 	pattern[0] = 0;
+	lncnt = 0;
 
 	bool wildcards = false;
 	setError(DISKIO_PASS); // Clear any existing error codes.
@@ -983,12 +990,14 @@ bool diskIO::lsDir(char *dirPath) {
 	if(!processPathSpec(savePath)) return false;
 	// Show current logical drive name.
 	Serial.printf(F("Volume Label: %s\r\n"), drvIdx[currDrv].name);
+	page(); // Display one page at a time. Prompt to continue.
 	// Show full path name (with logical drive name).
 	// If no path spec given then show current path.
 	if(dirPath == (const char *)"")
 		Serial.printf(F("Full Path: %s\r\n"), cwd());
 	else
 		Serial.printf(F("Full Path: %s\r\n"), dirPath);
+	page(); // Display one page at a time. Prompt to continue.
 	// wildcards = true if any wildcards used else false.
 	wildcards = getWildCard((char *)savePath,pattern);  
 
@@ -1005,15 +1014,14 @@ bool diskIO::lsDir(char *dirPath) {
 		lsFiles(&dir, pattern, wildcards);
 	}
 	dir.close();		// Done. Close directory base file.
-
 	// Show free space left on this device.
 	switch(drvIdx[currDrv].ifaceType) {
 		case USB_TYPE:
-			Serial.printf("Free Space: %llu\r\n",
-			pmsFS[currDrv]->totalSize()-pmsFS[currDrv]->usedSize());
+			Serial.printf(F("Free Space: %llu\r\n"),
+			pmsFS[currDrv-SLOT_OFFSET]->totalSize()-pmsFS[currDrv-SLOT_OFFSET]->usedSize());
 			break;
 		case SDIO_TYPE:
-			Serial.printf("Free Space: %llu\r\n",
+			Serial.printf(F("Free Space: %llu\r\n"),
 			sdfs[0].sd.totalSize()-sdfs[0].sd.usedSize());
 			break;
 		case SPI_TYPE:
@@ -1022,11 +1030,12 @@ bool diskIO::lsDir(char *dirPath) {
 			break;
 #if defined(ARDUINO_TEENSY41)
 		case LFS_TYPE:
-			Serial.printf("Free Space: %llu\r\n",
+			Serial.printf(F("Free Space: %llu\r\n"),
 			drvIdx[currDrv].fstype->totalSize()-drvIdx[currDrv].fstype->usedSize());
 			break;
 #endif
 	}
+	page(); // Display one page at a time. Prompt to continue.
 	if(currDrv != drive) {
 		changeVolume(drive);  // Change back to original logical drive. If changed.
 		currDrv = drive;    // Ditto with the drive index.
@@ -1046,8 +1055,9 @@ bool diskIO::lsSubDir(void *dir) {
 	while ((fsDirEntry = fsDir->openNextFile(O_RDONLY))) {
 		if(fsDirEntry.isDirectory()) { // Only list sub directories.
 			Serial.printf(F("%s/"),fsDirEntry.name()); // Display SubDir filename + '/'.
-			for(uint8_t i = 0; i <= (45-strlen(fsDirEntry.name())); i++) Serial.print(" ");
+			for(uint8_t i = 0; i <= (NUMSPACES-strlen(fsDirEntry.name())); i++) Serial.printf(F(" "));
 			Serial.printf(F("<DIR>\r\n"));
+			page(); // Display one page at a time. Prompt to continue.
 		}
 	}
 	fsDirEntry.close(); // Done. Close sub-entry file.
@@ -1060,29 +1070,101 @@ bool diskIO::lsFiles(void *dir, char *pattern, bool wc) {
   Serial.printf(F("lsFiles()...\r\n"));
 #endif
     DateTimeFields tm;
-	const char *months[12] = {
-		"January","February","March","April","May","June",
-		"July","August","September","October","November","December"
-	};
-	File fsDirEntry; // LittleFS.
+//	const char *months[12] = {
+//		"January","February","March","April","May","June",
+//		"July","August","September","October","November","December"
+//	};
+	File fsDirEntry;
 	File *fsDir = reinterpret_cast < File * > ( dir );
+	
+	uint8_t spacing = NUMSPACES;
+	 	
 	fsDir->rewindDirectory(); // Start at beginning of directory.
 	// Find next available object to display in the specified directory.
 	while ((fsDirEntry = fsDir->openNextFile(O_RDONLY))) {
 		if (wc && !wildcardMatch(pattern, fsDirEntry.name())) continue;
 		if(!fsDirEntry.isDirectory()) {
-			Serial.printf(F("%s "),fsDirEntry.name()); // Display filename.
-			for(uint8_t i = 0; i <= (40-strlen(fsDirEntry.name())); i++) Serial.print(" ");
+			Serial.printf(F("%s"),fsDirEntry.name()); // Display filename.
+			uint8_t fnlen = strlen(fsDirEntry.name());
+			if(fnlen > spacing) // Check for filename bigger the NUMSPACES.
+				spacing += (fnlen - spacing); // Correct for buffer overun.
+			else
+				spacing = NUMSPACES;
+			for(int i = 0; i < (spacing-fnlen); i++)
+				Serial.printf("%c",' ');
 			Serial.printf(F("%10ld"),fsDirEntry.size()); // Then filesize.
 			fsDirEntry.getModifyTime(tm);
-			for(uint8_t i = 0; i <= 10; i++) Serial.printf(F(" "));
+			for(uint8_t i = 0; i <= 1; i++) Serial.printf(F(" "));
 			Serial.printf(F("%9s %02d %02d %02d:%02d:%02d\r\n"), // Show date/time.
 							months[tm.mon],tm.mday,tm.year + 1900, 
 							tm.hour,tm.min,tm.sec);
+			page(); // Display one page at a time. Prompt to continue.
 		}
 	}
 	fsDirEntry.close(); // Done. Close sub-entry file.
 	return true;
+}
+
+// Wait for input after lncnt lines have been displayed.
+// Used with listDir().
+void diskIO::page(void) {
+  char chx;
+  lncnt++;
+#ifdef USE_TFT
+  if (lncnt < tft.bottommarg()-1)
+#else
+  if (lncnt < 35 )
+#endif
+    return;
+  Serial.printf("more>");	
+#ifndef USE_TFT
+  while(!Serial.available());
+  chx = Serial.read();
+#else
+  chx = getchar();
+#endif
+  if (chx == '\n')
+    chx = ' ';
+  Serial.printf("\n");
+  lncnt = 0;
+}
+
+// Open a dirctory and set a File pointer to it.
+bool diskIO::openDir(char *pathSpec) {
+//	char savePath[256];
+	savePath[0] = 0;
+
+	setError(DISKIO_PASS); // Clear any existing error codes.
+	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
+    // Preserve original path spec. Should only change if chdir() is used.	
+	strcpy(savePath,pathSpec);
+	// Process path spec.  Return false if failed (-1).
+	if(!processPathSpec(savePath)) return false;
+	if(!(root = drvIdx[currDrv].fstype->open(savePath))) {
+		setError(INVALID_PATH_NAME);
+		return false;
+	}
+	root.rewindDirectory();
+	if(currDrv != drive) {
+		changeVolume(drive);  // Change back to original logical drive. If changed.
+		currDrv = drive;    // Ditto with the drive index.
+	}
+	return true;
+}
+
+bool diskIO::readDir(File *entry, char *dirEntry) {
+	*entry = root.openNextFile(O_RDONLY);
+	if(!*entry) {
+		return false;
+	}
+	strcpy(dirEntry, entry->name());
+	return true;
+}
+
+void diskIO::closeDir(File *entry) {
+	entry->close();
+	root.close();
+// I guess we just have to assume close() worked...
 }
 
 //---------------------------------------------------------------------------
@@ -1096,7 +1178,7 @@ bool diskIO::exists(char *dirPath) {
 	setError(DISKIO_PASS); // Clear any existing error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
 	bool rslt = false;
-	char savePath[256];
+//	char savePath[256];
 	savePath[0] = 0;
 
     // Preserve original path spec. Should only change if chdir() is used.	
@@ -1127,7 +1209,7 @@ bool diskIO::mkdir(char *path) {
 #endif
 	setError(DISKIO_PASS); // Clear any existing error codes.
  	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
-	char savePath[256];
+//	char savePath[256];
 	savePath[0] = 0;
 	
     // Preserve original path spec. Should only change if chdir() is used.	
@@ -1156,7 +1238,7 @@ bool diskIO::rmdir(char *dirPath) {
 #endif
 	setError(DISKIO_PASS); // Clear any existing error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
-	char savePath[256];
+//	char savePath[256];
 	savePath[0] = 0;
 
     // Preserve original path spec. Should only change if chdir() is used.	
@@ -1184,7 +1266,7 @@ bool diskIO::rm(char *dirPath) {
 #endif
 	setError(DISKIO_PASS); // Clear any existing error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
-	char savePath[256];
+//	char savePath[256];
 	savePath[0] = 0;
 
     // Preserve original path spec. Should only change if chdir() is used.	
@@ -1208,9 +1290,9 @@ bool diskIO::rm(char *dirPath) {
 //---------------------------------------------------------------------------
 bool diskIO::rename(char *oldpath, char *newpath) {
 #ifdef TalkToMe
-	Serial.printf(F("rename()\r\n"));
+	Serial.printf(F("rename(%s,%s)\r\n"),oldpath, newpath);
 #endif
-	char savePath[256];
+//	char savePath[256];
 	savePath[0] = 0;
 	setError(DISKIO_PASS); // Clear any existing error codes.
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
@@ -1220,7 +1302,8 @@ bool diskIO::rename(char *oldpath, char *newpath) {
 
 	// Process path spec.  Return false if failed (-1).
 	if(processPathSpec(savePath)) {
-		if(!drvIdx[currDrv].fstype->rename(savePath, newpath))	setError(RENAME_ERROR);
+		if(!drvIdx[currDrv].fstype->rename(savePath, newpath))
+			setError(RENAME_ERROR);
 	}
 	if(currDrv != drive) {
 		changeVolume(currDrv);
@@ -1242,7 +1325,10 @@ bool diskIO::open(File *fp, char* dirPath, oflag_t oflag) {
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
  
     // Preserve original path spec. Should only change if chdir() is used.	
-	char savePath[256] = {""};
+//	char savePath[256] = {""};
+//	char savePath[256];
+	savePath[0] = 0;
+
 	strcpy(savePath,dirPath);
 
 	// Process path spec.  Return false if failed (-1).
@@ -1280,7 +1366,7 @@ bool diskIO::close(File *fp) {
 //---------------------------------------------------------------------------
 int diskIO::read(File *fp, void *buf, size_t count) {
 #ifdef TalkToMe
-	Serial.printf("read()\r\n");
+	Serial.printf(F("read()\r\n"));
 #endif
 	int32_t br = 0;
 
@@ -1298,7 +1384,7 @@ int diskIO::read(File *fp, void *buf, size_t count) {
 //---------------------------------------------------------------------------
 size_t diskIO::write(File *fp, void *buf, size_t count) {
 #ifdef TalkToMe
-	Serial.printf("write()\r\n");
+	Serial.printf(F("write()\r\n"));
 #endif
 	int32_t bw = 0;
 

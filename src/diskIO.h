@@ -14,19 +14,19 @@
 
 #define CNT_MSDRIVES 4
 #if defined(ARDUINO_TEENSY41)
-#define CNT_PARITIONS 32 
+#define CNT_PARITIONS 34 //32 
 #else
-#define CNT_PARITIONS 24
+#define CNT_PARITIONS 28 //24
 #endif
 
-#define LOGICAL_DRIVE_SDIO  4
-#define LOGICAL_DRIVE_SDSPI 5
-#define LFS_DRIVE_QPINAND   24
-#define LFS_DRIVE_QSPIFLASH 25
-#define LFS_DRIVE_QPINOR5   26
-#define LFS_DRIVE_QPINOR6   27
-#define LFS_DRIVE_SPINAND3  28
-#define LFS_DRIVE_SPINAND4  29
+#define LOGICAL_DRIVE_SDIO  20 //4
+#define LOGICAL_DRIVE_SDSPI 24 //5
+#define LFS_DRIVE_QPINAND   28 //24
+#define LFS_DRIVE_QSPIFLASH 29 //25
+#define LFS_DRIVE_QPINOR5   30 //26
+#define LFS_DRIVE_QPINOR6   31 //27
+#define LFS_DRIVE_SPINAND3  32 //28
+#define LFS_DRIVE_SPINAND4  33 //29
 
 #define CS_SD BUILTIN_SDCARD
 #define SD_SPI_CS 10
@@ -43,9 +43,9 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 
 // Path spec defines.
 #define DIRECTORY_SEPARATOR "/"
-#define MAX_FILENAME_LEN   256
-#define MAX_SUB_DEPTH	256
-
+#define MAX_FILENAME_LEN	256
+#define MAX_SUB_DEPTH		256
+#define NUMSPACES			40
 // Types of device hardware interfaces.
 #define USB_TYPE	0
 #define SDIO_TYPE	1
@@ -81,6 +81,8 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 
 #define ifLower(c) ((c) >= 'a' && (c) <= 'z')
 
+#define USE_TFT	//Uncomment this to use with RA8876 TFT. 
+
 // Logical drive device descriptor struct based on partitions.
 // Some of the entries are probably redundant a this point.
 typedef struct {
@@ -109,11 +111,12 @@ public:
 	void findNextDrive(void);
 	void connectedMSCDrives();
 	void checkSDDrives(void);
-	int  getLogicalDriveNumber(char *path);	
+	void initSDDrive(uint8_t sdDrive);
+	int  getLogicalDriveNumber(const char *path);	
 	int  isDriveSpec(char *driveSpec, bool preservePath);
 	int  changeDrive(char *driveSpec);
 	void changeVolume(uint8_t volume);
-	bool chdir(char *dirPath);
+	bool chdir(const char *dirPath);
 	bool mkdir(char *path);
 	bool rmdir(char *dirPath);
 	bool rm(char *dirPath);
@@ -133,20 +136,30 @@ public:
 	uint8_t getVolumeCount(void);
 	void listAvailableDrives(print_t* p);
 	bool relPathToAbsPath(const char *path_in, char * path_out, int outLen);
-	bool parsePathSpec(const char *pathSpec);
+
+	char *dirName(const char *path);
+	char *baseName(const char *path);
+
+	bool parsePathSpec(char *pathSpec);
 	bool getWildCard(char *specs, char *pattern);
 	bool wildcardMatch(const char *pattern, const char *filename);
 	void displayDateTime(uint16_t date, uint16_t time);
 	bool lsDir(char *);
 	bool lsSubDir(void *dir);
+	bool openDir(char *pathSpec);
+	bool readDir(File *entry, char *dirEntry);
+	void closeDir(File *entry);
+	void printSpaces(int num);
 	bool lsFiles(void *dir, char *pattern, bool wc);
 	uint8_t getCDN(void);
 	void setCDN(uint8_t drive);
 	char *cwd(void);
+	void page(void);
 	diskIO *dio() { return m_diskio; };
 private:
+	char savePath[256];
 	uint8_t count_mp = 0;
-	uint8_t currDrv = 0;
+	uint8_t currDrv = 4;
 	uint8_t m_error = 0;
 	SdFs sd;
 	SdFs sdSPI;
@@ -160,7 +173,6 @@ private:
 	LittleFS_SPIFlash  SPIFlashFS[2];
 	LittleFS_SPIFram   SPIRamFS;
 	LittleFS_SPINAND   SPINandFS[2];
-	
 #endif
 	diskIO *m_diskio = this;
 };
