@@ -11,6 +11,9 @@
 #define __PROG_TYPES_COMPAT__
 #include <Arduino.h>
 
+//#undef AUDIOPLAY
+#define AUDIOPLAY
+
 #define MAX_CMD_NUM 128
 
 #define MAX_CMD_BUF_SIZE 256
@@ -87,6 +90,8 @@ private:
     static void mkdirCB(char** pParam, uint8_t parCnt);
     static void rmCB(char** pParam, uint8_t parCnt);
     static void renameCB(char** pParam, uint8_t parCnt);
+    static void mkfsCB(char** pParam, uint8_t parCnt);
+    static void umountfsCB(char** pParam, uint8_t parCnt);
     static void cpCB(char** pParam, uint8_t parCnt);
 	
 	void ListDrives(char **pParam, uint8_t parCnt);
@@ -94,7 +99,9 @@ private:
     void ChangeDir(char **pParam, uint8_t parCnt);
     void Echo(char **pParam, uint8_t parCnt);
     void Cat(char** pParam, uint8_t parCnt);
+#ifdef AUDIOPLAY
     void Play(char** pParam, uint8_t parCnt);
+#endif
     void watch(char** pParam, uint8_t parCnt);
     void watchcsv(char** pParam, uint8_t parCnt);
     void clear(char** pParam, uint8_t parCnt);
@@ -104,7 +111,8 @@ private:
     void rm(char** pParam, uint8_t parCnt);
     void rename(char** pParam, uint8_t parCnt);
     void cp(char** pParam, uint8_t parCnt);
-
+	void mkfs(char** pParam, uint8_t parCnt);
+	void umountfs(char** pParam, uint8_t parCnt);
 private:
     void ShowPrompt();
     uint8_t ParseCmdParams(char *pParam);
@@ -149,7 +157,7 @@ private:
 
     static CMD_ENTRY Cmds[MAX_CMD_NUM];
     PARAM_ENTRY *Params;
-    static const char dirList[][5] PROGMEM;
+    static const char dirlist[][5] PROGMEM;
 };
 
 extern microBox microbox;
