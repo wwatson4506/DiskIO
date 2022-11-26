@@ -11,8 +11,7 @@
 #define __PROG_TYPES_COMPAT__
 #include <Arduino.h>
 
-//#undef AUDIOPLAY
-#define AUDIOPLAY
+//#define AUDIOPLAY 1
 
 #define MAX_CMD_NUM 128
 
