@@ -45,13 +45,14 @@ The main goal is to be able to unify all of the different access methods of SdFa
 - Hot plugging now supports unplugging the default device and switching to the next available device. This is not recommended if the device is in use.
 
 #### Playing Music Files:
-    - Supported types are WAV, MP3, AAC, FLAC and RAW. In "DiskIOMB.h" line #
+- Supported types are WAV, MP3, AAC, FLAC and RAW. In "DiskIOMB.h" line #14 un-comment the define "#define AUDIOPLAY 1" to enable playing music files and     You will need this library as well:
+#### https://github.com/wwatson4506/Arduino-Teensy-Codec-lib
 
 
 #### Notes:
 
  - DiskIOMB is a modified version of microBox used for testing and found here: http://sebastian-duell.de/en/microbox/index.html
-
+ - Enabling the play music option
 In DiskIOMB type help at the command line to see the commands that were modified and commands that were added for use with Teensy.
 
 So far most of this is working well but still needs a lot more work. Really don't know if this is something that might be useful but it is fun to play with:)
