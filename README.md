@@ -19,14 +19,14 @@ The main goal is to be able to unify all of the different access methods of SdFa
 
 **SPI SD not supported yet.**
 
-Examples:
+#### Examples of device names and numbers:
  * **cp** /QPINAND/test.txt 1:test.txt
  * **cp** test.txt test1.txt
  * **cp** /32GSDEXT4/MusicFile.wav /128GEXFAT/MusicFile.wav
  * **ls** 5:../src/*.cpp
  * **rename** /QSPIFLASH/test.dat test1.dat
 
-The objectives are:
+#### Objectives:
 
 - Support up to 4 USB Mass Storage devices (2 supported at the moment to minimize memory usage) the native SDIO SD and LittleFS devices.
 - Allow for 4 partitions per Mass Storage device Except LittleFS and SDIO cards. Total of 32 logical drives with most types of LittleFS devices.
@@ -39,13 +39,15 @@ The objectives are:
 - Add extra support for additional EXT4 functionality out side of SDFat and littleFS. (hard links,symbolic links, permissions etc...)
 - Play music files from any logical drive. Cannot use the same device if playing a music file from it. Other devices can be accessed as it is non-blocking. 
 
-Examples:
+#### DiskIO Examples:
 - DiskIOTesting.ino: A simple test of some DiskIO functions.
 - DiskIOMB.ino: A simple cli for testing most diskIO functions and demonstrating unified access to different types of Mass Storage devices on the Teensy. (SdFat, LittleFS and EXT4). DiskIOMB easily allows adding commands that can be executed from the command line. 
 - Hot plugging now supports unplugging the default device and switching to the next available device. This is not recommended if the device is in use.
 - DiskIOMB is a partialy modified version of microBox for testing found here:
 
 http://sebastian-duell.de/en/microbox/index.html
+
+#### Notes:
 
 In DiskIOMB type help at the command line to see the commands that were modified and commands that were added for use with Teensy.
 
