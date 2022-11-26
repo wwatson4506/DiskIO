@@ -997,10 +997,12 @@ void microBox::help(char** pParam, uint8_t parCnt) {
 	Serial.printf(F("rename - Rename file or directory.\r\n"));
 	Serial.printf(F("cp     - Copy file (src dest).\r\n"));
 	Serial.printf(F("cat    - List file (Ascii only).\r\n"));
+#ifdef AUDIOPLAY
 	Serial.printf(F("play    - Play a Wav, MP3, AAC, RAW or FLA file.\r\n"));
 	Serial.printf(F("        - Press 'end' key to stop.(VT100 Terminal)\r\n"));
 	Serial.printf(F("        - Cannot perform disk operation on same device file \r\n"));
 	Serial.printf(F("        - is playing from. It will lock up DiskIOMB!\r\n"));
+#endif
 	Serial.printf(F("mkfs    - Format partition (drive: format type 0-2)\r\n\r\n"));
 	Serial.printf(F("All commands except clear and ld accept an optional drive spec.\r\n"));
 	Serial.printf(F("The drive spec can be /volume name/ (forward slashes required)\r\n"));
