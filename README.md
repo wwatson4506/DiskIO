@@ -1,20 +1,32 @@
-# DiskIO
-This is a repository that uses and tests UsbMscFat-FS_Integration (mjs513's branch) on the T3.6/T4.0/T4.1. MicroMod has not beeen tested yet.
+# DiskIOV3
 
-Required libraries:
+## This repository attempts to integrate all of the various filesystems for the T3.6/T4.0/T4.1/MicroMod.
 
-UsbMscFat
-https://github.com/mjs513/UsbMscFat/tree/FS_Integration
+## This is work in progress and is strictly experimentation and/or proof of concept. 
 
-Built using Arduino 1.8.16 and Teensyduino 1.55 release version.
+### Required libraries:
+ 
+ #### https://github.com/wwatson4506/USBHost_t36/tree/ext4FS_addition
+ 
+ #### https://github.com/wwatson4506/TeensyEXT4/tree/TeensyEXT4V3
+ 
+ #### https://github.com/wwatson4506/Arduino-Teensy-Codec-lib (If playing music files enabled)
 
-The main goal is to be able to unify all of the different access methods of USBFat, SdFat and LittleFs into one. LittleFS has been a bit of a challenge but is working. So far just QPINAND has beeen tested. I want to add the rest of the LittleFS devices later. 
+ 
+Built using Arduino 1.8.19 and Teensyduino 1.57/1.58B2 versions.
 
-This is work in progress and is strictly experimentation and/or proof of concept. 
+The main goal is to be able to unify all of the different access methods of SdFat, LittleFs, MSC and EXT4 filesystems into one API using FS abstraction methods. This is done by using an indexed list of device descriptors. One for each logical device (partition). You do not need to know what type of filesystem you are accessing. All methods work the same no matter what the partition type is thanks to FS. This is done by using a drive specification which can be a logical drive number "0:"-"38:" or a volume label "/volume name/".
+
+Examples:
+ * cp /QPINAND/test.txt 1:test.txt
+ * cp test.txt test1.txt
+ * cp /32GSDEXT4/MusicFile.wav /128GEXFAT/MusicFile.wav
+ * ls 5:../src/*.cpp
+ * rename /QSPIFLASH/test.dat test1.dat
 
 The objectives are:
 
-- Support up to 4 USB Mass Storage devices, the native SDIO SD card and a SPI SD card and LittleFS devices.
+- Support up to 4 USB Mass Storage devices (2 supported at the moment to minimize memory usage) the native SDIO SD and LittleFS devices.
 - Allow for 4 partitions per Mass Storage device Except LittleFS. Total of 32 logical drives with all types of LittleFS devices.
 - Use a volume name for access to each logical drive or use an index number for array of mounted logical drives. LittleFS will   use defined device names.
 - Be able to set a default drive (change drive).
