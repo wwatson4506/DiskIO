@@ -43,11 +43,14 @@ The main goal is to be able to unify all of the different access methods of SdFa
 - DiskIOTesting.ino: A simple test of some DiskIO functions.
 - DiskIOMB.ino: A simple cli for testing most diskIO functions and demonstrating unified access to different types of Mass Storage devices on the Teensy. (SdFat, LittleFS and EXT4). DiskIOMB easily allows adding commands that can be executed from the command line. 
 - Hot plugging now supports unplugging the default device and switching to the next available device. This is not recommended if the device is in use.
-- DiskIOMB is a partialy modified version of microBox for testing found here:
 
-http://sebastian-duell.de/en/microbox/index.html
+#### Playing Music Files:
+    - Supported types are WAV, MP3, AAC, FLAC and RAW. In "DiskIOMB.h" line #
+
 
 #### Notes:
+
+ - DiskIOMB is a modified version of microBox used for testing and found here: http://sebastian-duell.de/en/microbox/index.html
 
 In DiskIOMB type help at the command line to see the commands that were modified and commands that were added for use with Teensy.
 
