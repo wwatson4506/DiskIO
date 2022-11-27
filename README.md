@@ -42,7 +42,6 @@ The main goal is to be able to unify all of the different access methods of SdFa
 #### DiskIO Examples:
 - DiskIOTesting.ino: A simple test of some DiskIO functions.
 - DiskIOMB.ino: A simple cli for testing most diskIO functions and demonstrating unified access to different types of Mass Storage devices on the Teensy. (SdFat, LittleFS and EXT4). DiskIOMB easily allows adding commands that can be executed from the command line. 
-- Hot plugging now supports unplugging the default device and switching to the next available device. This is not recommended if the device is in use.
 
 #### Playing Music Files:
 - Supported types are WAV, MP3, AAC, FLAC and RAW. In "DiskIOMB.h" line #14 un-comment the define "#define AUDIOPLAY 1" to enable playing music files and     You will need this library as well:
