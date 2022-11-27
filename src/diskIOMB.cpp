@@ -18,26 +18,34 @@
 #include <play_sd_mp3.h>
 #include <play_sd_aac.h>
 #include <play_sd_flac.h>
-#include <play_FS_wav.h>
-#include <play_FS_raw.h>
 
-// GUItool: begin automatically generated code
 AudioPlaySdMp3           playMp31;       //xy=154,78
-AudioPlayFSWav           playWav; //xy=154,422
-AudioPlayFSRaw           playRaw; //xy=154,422
+AudioPlaySdWav           playWav; //xy=154,422
+AudioPlaySdRaw           playRaw; //xy=154,422
 AudioPlaySdAac           playAac; //xy=154,422
 AudioPlaySdFlac          playFlac;
-AudioOutputI2S           i2s1;           //xy=334,89
-AudioConnection          patchCord3(playWav, 0, i2s1, 0);
-AudioConnection          patchCord4(playWav, 1, i2s1, 1);
-AudioConnection          patchCord1(playMp31, 0, i2s1, 0);
-AudioConnection          patchCord2(playMp31, 1, i2s1, 1);
-AudioConnection          patchCord5(playAac, 0, i2s1, 0);
-AudioConnection          patchCord6(playAac, 1, i2s1, 1);
-AudioConnection          patchCord7(playRaw, 0, i2s1, 0);
-AudioConnection          patchCord8(playFlac, 0, i2s1, 0);
-AudioConnection          patchCord9(playFlac, 1, i2s1, 1);
-AudioControlSGTL5000     sgtl5000_1;     //xy=240,153
+
+// GUItool: begin automatically generated code
+AudioOutputI2S           i2s1;           //xy=1023.0000076293945,500.00000286102295
+AudioMixer4              mixer1;         //xy=625.0000038146973,393.00000381469727
+AudioMixer4              mixer2; //xy=626.0000038146973,490.00000381469727
+AudioMixer4              mixer3; //xy=811.0000076293945,571.0000038146973
+AudioMixer4              mixer4; //xy=816.0000057220459,655.0000038146973
+AudioConnection          patchCord1(playWav, 0, mixer1, 3);
+AudioConnection          patchCord2(playWav, 1, mixer2, 3);
+AudioConnection          patchCord3(playMp31, 0, mixer1, 1);
+AudioConnection          patchCord4(playMp31, 1, mixer2, 1);
+AudioConnection          patchCord5(playAac, 0, mixer1, 0);
+AudioConnection          patchCord6(playAac, 1, mixer2, 0);
+AudioConnection          patchCord7(playFlac, 0, mixer1, 2);
+AudioConnection          patchCord8(playFlac, 1, mixer2, 2);
+AudioConnection          patchCord9(mixer1, 0, mixer3, 0);
+AudioConnection          patchCord10(mixer2, 0, mixer4, 0);
+AudioConnection          patchCord11(playRaw, 0, mixer3, 1);
+AudioConnection          patchCord12(playRaw, 0, mixer4, 1);
+AudioConnection          patchCord13(mixer3, 0, i2s1, 0);
+AudioConnection          patchCord14(mixer4, 0, i2s1, 1);
+AudioControlSGTL5000     sgtl5000_1;     //xy=385,688.0000038146973// GUItool: end automatically generated code
 
 static int playFileType = 0;
 #endif
@@ -1003,6 +1011,9 @@ void microBox::help(char** pParam, uint8_t parCnt) {
 	Serial.printf(F("        - Cannot perform disk operation on same device file \r\n"));
 	Serial.printf(F("        - is playing from. It will lock up DiskIOMB!\r\n"));
 #endif
+	Serial.printf(F("umount  - un-mount partition (drive: or Volume name) This will\r\n"));
+	Serial.printf(F("        - also un-mount any other mounted partitions on that\r\n"));
+	Serial.printf(F("        - pysical drive.\r\n"));
 	Serial.printf(F("mkfs    - Format partition (drive: format type 0-2)\r\n\r\n"));
 	Serial.printf(F("All commands except clear and ld accept an optional drive spec.\r\n"));
 	Serial.printf(F("The drive spec can be /volume name/ (forward slashes required)\r\n"));
