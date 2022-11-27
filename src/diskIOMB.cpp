@@ -18,10 +18,12 @@
 #include <play_sd_mp3.h>
 #include <play_sd_aac.h>
 #include <play_sd_flac.h>
+#include <play_FS_wav.h>
+#include <play_FS_raw.h>
 
 AudioPlaySdMp3           playMp31;       //xy=154,78
-AudioPlaySdWav           playWav; //xy=154,422
-AudioPlaySdRaw           playRaw; //xy=154,422
+AudioPlayFSWav           playWav; //xy=154,422
+AudioPlayFSRaw           playRaw; //xy=154,422
 AudioPlaySdAac           playAac; //xy=154,422
 AudioPlaySdFlac          playFlac;
 
