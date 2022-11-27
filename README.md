@@ -29,14 +29,14 @@ The main goal is to be able to unify all of the different access methods of SdFa
 #### Objectives:
 
 - Support up to 4 USB Mass Storage devices (2 supported at the moment to minimize memory usage) the native SDIO SD and LittleFS devices.
-- Allow for 4 partitions per Mass Storage device Except LittleFS and SDIO cards. Total of 32 logical drives with most types of LittleFS devices.
+- Allow for 4 partitions per Mass Storage device Except LittleFS and SDIO cards. Total of 32 logical drives are supported plus most types of LittleFS devices are defined (28:-34:).
 - Use a volume name for access to each logical drive or use an index number for array of mounted logical drives. LittleFS will use defined device names.
 - Be able to set a default drive (change drive). The first valid drive is set to default drive on boot up.
 - Be able to parse a full path spec including drive spec, relative path specs and wildcard processing.
 - Use a more standard directory listing including time and dates stamps using the Teensy builtin RTC.
 - Properly process hot plugging including switching default drive to next available drive if default drive is unplugged.
 - Support auto mounting and supplying an un-mount method for use with SDFat and ext4FS. (Warnings given for not un-mounting devices cleanly).
-- Add extra support for additional EXT4 functionality out side of SDFat and littleFS. (hard links,symbolic links, permissions etc...)
+- Add extra support for additional EXT4 functionality outside of SDFat and littleFS. (hard links,symbolic links, permissions etc...)
 - Play music files from any logical drive. Cannot use the same device if playing a music file from it. Other devices can be accessed as it is non-blocking. 
 
 #### DiskIO Examples:
@@ -59,6 +59,7 @@ The main goal is to be able to unify all of the different access methods of SdFa
  - Recursive copy and delete commands with use of wildcards.
  - Change "umount" command to "eject" and add seperate "mount" and "umount" commands to work with individual partitions instead of complete physical USB device.
  - Add MTP usage.
+ - Finish adding support for EXT4 hard links,symbolic links, permissions, directory indexing etc...
 
 In DiskIOMB type "help" at the command line to see the commands that were modified and commands that were added for use with Teensy.
 
