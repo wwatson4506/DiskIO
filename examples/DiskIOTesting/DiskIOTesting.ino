@@ -1,16 +1,20 @@
 // diskIOtesting,ino
 // A simple sketch to demonstrate some DiskIO capabilities.
+// Now includes ext4FS usage.
 
 #include "Arduino.h"
-#include "mscFS.h"
 #if defined(ARDUINO_TEENSY41)
 #include "LittleFS.h"
 #endif
+
 #include "diskIO.h"
 
+#define USE_TFT 0	//Uncomment this to use with RA8876 TFT. 
+
 diskIO dio;  // One instance of diskIO.
-int br = 0;
-int bw = 0;
+
+int32_t br = 0;
+int32_t bw = 0;
 char buff[8192]; // Disk IO buffer.
 char sbuff[256]; // readLine buffer.
 
@@ -70,19 +74,23 @@ char *readLine(char *s) {
 // Change 'device' to the volume name of one of your drives.
 // Or you can specify a logical drive number (partition number)
 // followed with a colon before the path name. 32 partitions are allowed. 0-23
-// used for PFsVolumes. 24-31 for LittlFS devices.
+// used for USBFilesystem and 4 partitions are allowed for ext4FS partitions.
+// 24-31 for LittlFS devices.
 // Use: 'listAvailableDrives(&Serial)' to list attached available volume labels
 // and logical drive numbers.
 
 char *device = "0:test1.txt"; // First logical drive on a USB physical drive.
 //char *device = "/16GEXFATP2/test1.txt"; // Second logical drive on a USB physical drive.
 //char *device = "/128GEXFATP1/test1.txt"; // Partition label name
-//char *device = "24:test1.txt"; // Logical drive number (in this case QPINAND T4.1 only). 
+//const char *device = "28:test1.txt"; // Logical drive number (in this case QPINAND T4.1 only). 
+
+File f;
+File dir;
 
 void setup() {
   // Open serial communications and wait for port to open:
    while (!Serial) {
-    SysCall::yield(); // wait for serial port to connect.
+      ; // wait for serial port to connect.
   }
 #if defined(ARDUINO_TEENSY41)
   if(CrashReport)
@@ -103,149 +111,78 @@ void setup() {
   Serial.printf(F("\r\n"));
 
   // List default logical drive and directory.
-  if(!dio.lsDir((char *)""))
-	Serial.printf(F("lsDir() Failed: %s, Code: %d\r\n\r\n"), dio.cwd(), dio.error());
+  if(!dio.lsDir(device))
+	Serial.printf(F("lsDir() Failed! Code: %d\r\n\r\n"), dio.error());
 
   // Setup string of text to write to a file (test1.txt).
-  sprintf(buff,"%s",(char *)"This is a test line to test diskIO write() function");
-
-  // Create an instance of PFsFile and File.
-  PFsFile mscfl; // For SD, SDIO and MSC devices.
-  File lfsfl;    // For LittleFS devices.
+  sprintf(buff,"%s",(char *)"This is a test line to test diskIO write() function\r\n");
 
   // Open and create a file for write.
-  Serial.printf(F("\r\nOpening this file for write: '%s'\r\n"), device);
-  if(dio.getOsType(device) == PFSFILE_TYPE) {
-    if(!dio.open(&mscfl,(char *) device, O_WRONLY | O_CREAT | O_TRUNC))
-	  Serial.printf(F("open() Failed: %s, Code: %d\r\n"), device, dio.error());
-  } else { //LFS
-#if defined(ARDUINO_TEENSY41)
-	if(!dio.lfsOpen(&lfsfl,(char *)device, FILE_WRITE_BEGIN))
-	  Serial.printf(F("open() Failed: %s, Code: %d\r\n"), device, dio.error());
-#endif
-  }
+  Serial.printf(F("\r\nOpening this file for write: %s\r\n"), device);
+  if(!dio.open(&f,(char *)device, FILE_WRITE_BEGIN))
+	Serial.printf(F("open() Failed: %s, Code: %d\r\n"), device, dio.error());
 
   // Write our string to the open file.
-  if(dio.getOsType(device) == PFSFILE_TYPE) {
-    bw = dio.write(&mscfl, buff, strlen(buff));
-	if(bw != (int)strlen(buff))
-	  Serial.printf(F("write() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-  } else { // LFS
-#if defined(ARDUINO_TEENSY41)
-    bw = dio.lfsWrite(&lfsfl, buff, strlen(buff));
-	if(bw != (int)strlen(buff))
-	  Serial.printf(F("write() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-#endif
-  }
+  bw = dio.write(&f, buff, strlen(buff));
+  if(bw != (int)strlen(buff))
+	Serial.printf(F("write() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
 
   // Show the string we wrote to the file and the number of bytes written.
-  Serial.printf("What we wrote: '%s'",buff);
+  Serial.printf("What we wrote: %s",buff);
   Serial.printf(F("\r\n%u bytes written to file.\r\n"), bw);
 
   // Sync the file.
-  Serial.printf(F("flushing buff\r\n"));
-  if(dio.getOsType(device) == PFSFILE_TYPE) {
-    dio.fflush(&mscfl);
-  } else { // LFS
-#if defined(ARDUINO_TEENSY41)
-    dio.lfsFflush(&lfsfl);
-#endif
-  }
+  dio.fflush(&f);
 
   //  Close the file.
-  Serial.printf(F("closing file: %s\r\n"), device);
-  if(dio.getOsType(device) == PFSFILE_TYPE) {
-	if(!dio.close(&mscfl))
-		Serial.printf(F("close() Failed: %s\r\n\r\n"), device, dio.error());
-  } else { // LFS
-#if defined(ARDUINO_TEENSY41)
-	if(!dio.lfsClose(&lfsfl))
-		Serial.printf(F("close() Failed: %s\r\n\r\n"), device, dio.error());
-#endif
-  }
+  if(!dio.close(&f))
+	Serial.printf(F("close() Failed: %s\r\n\r\n"), device, dio.error());
 
   // Re-open same file for read.
-  Serial.printf(F("Opening this file for read: '%s'\r\n"), device);
-  if(dio.getOsType(device) == PFSFILE_TYPE) {
-    if(!dio.open(&mscfl, (char *)device, FILE_READ))
-	  Serial.printf(F("open() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-  } else { // LFS
-#if defined(ARDUINO_TEENSY41)
-    if(!dio.lfsOpen(&lfsfl, (char *)device, FILE_READ))
-	  Serial.printf(F("open() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-#endif
-  }	  
+  if(!dio.open(&f, (char *)device, FILE_READ))
+	Serial.printf(F("open() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
 
   // Seekfile to position 10.
-  Serial.printf(F("Seeking to file position 10\r\n"));
-  if(dio.getOsType(device) == PFSFILE_TYPE) {
-    if(!dio.lseek(&mscfl, 10, SEEK_SET))
-      Serial.printf(F("lseek() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-  } else { // LFS
-#if defined(ARDUINO_TEENSY41)
-    if(!dio.lfsLseek(&lfsfl, 10, SEEK_SET))
-      Serial.printf(F("lseek() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-#endif
-  }
+  Serial.printf("Seeking to position 10\r\n");
+  if(!dio.lseek(&f, 10, SEEK_SET))
+    Serial.printf(F("lseek() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
 
   // Check the current file position.
-  Serial.printf(F("Getting current file position\r\n"));
-  if(dio.getOsType(device) == PFSFILE_TYPE) {
-    if(!dio.ftell(&mscfl))
-   	  Serial.printf(F("ftell() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-    else
-  	  Serial.printf(F("ftell() returned %d\r\n"), dio.ftell(&mscfl));
-  } else { // LFS
-#if defined(ARDUINO_TEENSY41)
-    if(!dio.lfsFtell(&lfsfl))
-   	  Serial.printf(F("lfsFtell() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-    else
-  	  Serial.printf(F("lfsFtell() returned %d\r\n"), dio.lfsFtell(&lfsfl));
-#endif
-  }
+  if(!dio.ftell(&f))
+    Serial.printf(F("ftell() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
+  else
+    Serial.printf(F("ftell() returned %d\r\n\r\n"), dio.ftell(&f));
 
   // Read in the line of text.    
-  if(dio.getOsType(device) == PFSFILE_TYPE) {
-    if((br = dio.read(&mscfl, buff, 8192)) < 0)
-      Serial.printf(F("read() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-  } else {
-#if defined(ARDUINO_TEENSY41)
-    if((br = dio.lfsRead(&lfsfl, buff, 8192)) < 0)
-      Serial.printf(F("read() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
-#endif
-  }
+  if((br = dio.read(&f, buff, 8192)) < 0)
+    Serial.printf(F("read() Failed: %s Code: %d\r\n\r\n"), device, dio.error());
   buff[br] = '\0';
   // Show the line and the number of bytes read.
-  Serial.printf(F("What we read: '%s'"), buff);
+  Serial.printf(F("What we read: %s"), buff);
   Serial.printf(F("\r\nbytes read = %d\r\n"), br);
 
   //  Close the file.
-  Serial.printf(F("closing file: %s\r\n"), device);
-  if(dio.getOsType(device) == PFSFILE_TYPE) {
-    if(!dio.close(&mscfl))
-      Serial.printf(F("close() Failed: %s code: %d\r\n\r\n"), device, dio.error());
-  } else { // LFS
-#if defined(ARDUINO_TEENSY41)
-    if(!dio.lfsClose(&lfsfl))
-      Serial.printf(F("close() Failed: %s code: %d\r\n\r\n"), device, dio.error());
-#endif
-  }
+  if(!dio.close(&f))
+    Serial.printf(F("close() Failed: %s code: %d\r\n\r\n"), device, dio.error());
 
+  if(!dio.openDir((const char *)"0:"))
+    Serial.printf(F("opendir() Failed: %d\r\n\r\n"), dio.error());
+
+  while(dio.readDir(&dir, buff)) {
+    Serial.printf("%s",dir.name());
+    if(!dir.isDirectory()) {
+      Serial.printf("  %llu\r\n",dir.size());
+    } else {
+      Serial.printf("\r\n");
+    }
+  }
+  dio.closeDir(&dir);
   Serial.printf(F("Press enter to continue...\r\n"));
   readLine((char *)sbuff);
 }
 
 void loop(void) {
-
-  Serial.printf(F("\r\n********************************************************\r\n"));
-  Serial.printf("Unplug a USB drive then press enter.\r\n");
-  Serial.printf("Plug the same USB drive in then press enter again.\r\n");
-  Serial.printf("This shows hot plugging at work. USB drives only so far.\r\n");
-  Serial.printf("Four USB drives are supported (SD's not yet).\r\n");
-  Serial.printf(F("********************************************************\r\n\r\n"));
-  
   dio.listAvailableDrives(&Serial);
-
   Serial.printf(F("Press enter to continue...\r\n"));
   readLine((char *)sbuff);
 }
