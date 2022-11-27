@@ -52,7 +52,10 @@ The main goal is to be able to unify all of the different access methods of SdFa
 #### Notes:
 
  - DiskIOMB is a modified version of microBox used for testing and found here: http://sebastian-duell.de/en/microbox/index.html
- - When you plug in a USB drive it will be auto mounted. Supported file systems are SdFat, LittleFS and EXT4. Care must be taken to unmount the device before unplugging it. If not unmounted, you will get a warning about it. If the device is not removed it will be automatically remounted. The EXT4 filesystem writes current information to the drive and clears the cache before it unmounts and unregisters it.
+ - When you plug in a USB drive it will be auto mounted. Supported file systems are SdFat, LittleFS and EXT4. Care must be taken to unmount the device before unplugging it. If not unmounted, you will get a warning about it. If the device is not removed it will be automatically remounted. The EXT4 filesystem writes current information to the drive and clears the cache before it unmounts and unregisters it. Hot plugging SD cards is not supported at this time. Not sure if it is practical to do this as most Teensys would be put in enclosures. Using USB drives seem more practical.
+ - Only 4 EXT4 partitions are supported right now.
+ - Multiple partiions can be a mix of EXT4, FAT32 and EXFAT. 4 partitions per physical device. SD cards support 1 partition.
+ - 
 In DiskIOMB type help at the command line to see the commands that were modified and commands that were added for use with Teensy.
 
 So far most of this is working well but still needs a lot more work. Really don't know if this is something that might be useful but it is fun to play with:)
