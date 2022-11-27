@@ -6,7 +6,7 @@
 
 ### Required libraries:
  
- #### https://github.com/wwatson4506/USBHost_t36/tree/ext4FS_addition
+ #### https://github.com/wwatson4506/USBHost_t36/tree/ext4FS_additions
  
  #### https://github.com/wwatson4506/TeensyEXT4/tree/TeensyEXT4V3
  
