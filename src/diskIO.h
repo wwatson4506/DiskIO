@@ -2,58 +2,85 @@
 
 #ifndef diskIO_h
 #define diskIO_h
-#include <type_traits>
-#include "mscFS.h"
+#include "SD.h"
+#include "USBHost_t36.h"
+#include "ext4FS.h"
 
 #if defined(ARDUINO_TEENSY41)
 #include "LittleFS.h" // T4.1 only
 #endif
 
+//***********************************************
+//#define TalkToMe  1 // Uncomment this for debug
+//***********************************************
+
 #define CNT_MSDRIVES 4
 #if defined(ARDUINO_TEENSY41)
-#define CNT_PARITIONS 32 
+#define CNT_PARITIONS 38 //34 
 #else
-#define CNT_PARITIONS 24
+#define CNT_PARITIONS 28 //24
 #endif
 
-#define LOGICAL_DRIVE_SDIO  4
-#define LOGICAL_DRIVE_SDSPI 5
-#define LOGICAL_DRIVE_LFS   6
+//************************************************
+// Define fixed block device index numbers.
+//************************************************
+#define LOGICAL_DRIVE_SDIO  20 //4
+#define LOGICAL_DRIVE_SDSPI 24 //5
+#define LFS_DRIVE_QPINAND   28 //24
+#define LFS_DRIVE_QSPIFLASH 29 //25
+#define LFS_DRIVE_QPINOR5   30 //26
+#define LFS_DRIVE_QPINOR6   31 //27
+#define LFS_DRIVE_SPINAND3  32 //28
+#define LFS_DRIVE_SPINAND4  33 //29
 
+//************************************************
+// Define SDIO EXT4 block device number and mount
+// point index.
+// ***********************************************
+#define SDIO_BD	 3  // SDIO ext4 block device
+#define SDIO_MP 12  // SDIO ext4 mount point 
+
+//************************************************
+// Define SDIO EXT4 block device number and mount
+// point index.
+// ***********************************************
+#define SDSPI_BD 3   // SDIO ext4 block device
+#define SDSPI_MP 16  // SDIO ext4 mount point 
+
+//************************************************
+// Defines for builtin and external SD cards.
+//************************************************
+#define CS_SD BUILTIN_SDCARD
 #define SD_SPI_CS 10
 #define SPI_SPEED SD_SCK_MHZ(40)  // adjust to sd card 
 #define SD_CONFIG SdioConfig(FIFO_SDIO)
-#define SD_SPICONFIG SdioConfig(FIFO_SDIO)
+#define SD_SPICONFIG SdSpiConfig(SD_SPI_CS, DEDICATED_SPI, SPI_SPEED)
 
+// Arbitrary USB drive device type.
+#define DEVICE_TYPE_USB 4
+
+// LFS defines.
 #if defined(ARDUINO_TEENSY41)
-// LFS Testing (Just QPINAND for now)
-#define QPINAND_CS 3
-const char memDrvName[] {"QPINAND"};
+// Set which Chip Select pin for SPI usage.
+const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #5, #6 : NAND 1Gb on #3, 2GB on #4
 #endif
 
 // Path spec defines.
 #define DIRECTORY_SEPARATOR "/"
-#define MAX_FILENAME_LEN   256
-#define MAX_SUB_DEPTH	256
+#define MAX_FILENAME_LEN	256
+#define MAX_SUB_DEPTH		256
+#define MAX_PARTITIONS		4
+#define NUMSPACES			40
 
 // Types of device hardware interfaces.
 #define USB_TYPE	0
 #define SDIO_TYPE	1
 #define SPI_TYPE	2
-
 #if defined(ARDUINO_TEENSY41)
 #define LFS_TYPE	5
 #endif
 
-// Types of OS
-#define PFSFILE_TYPE 0
-#if defined(ARDUINO_TEENSY41)
-#define FILE_TYPE    1
-#else
-#define FILE_TYPE    0
-#endif
-
-// Four partition slot per physical device
+// Four partition slots per physical device
 #define SLOT_OFFSET 4
 
 // Error codes
@@ -72,100 +99,122 @@ const char memDrvName[] {"QPINAND"};
 #define RMDIR_ERROR			12
 #define RM_ERROR			13
 #define DISK_FULL_ERROR		14
-#define OSTYPE_ERROR		15
+#define FORMAT_ERROR		15
+#define AUDIO_WAV_PLAY_ERR	16
+#define UMOUNT_FAILED		17
+#define INVALID_VOLUME_NAME 18
 #define LDRIVE_NOT_FOUND	252	
 #define DEVICE_NOT_CONNECTED 253
 
 #define ifLower(c) ((c) >= 'a' && (c) <= 'z')
 
-//#define TalkToMe  1 // Uncomment this for debug
+//#ifdef USE_TFT
+//#undef USE_TFT	//undef to use without RA8876 TFT. 
+//#endif
 
 // Logical drive device descriptor struct based on partitions.
 // Some of the entries are probably redundant a this point.
 typedef struct {
+	FS		*fstype = nullptr;
 	char	name[32];        // Volume name as a drive name.
 	char	currentPath[256];    // Current default path spec.
 	char	fullPath[256];	 // Full path name. Includes Logical drive name.
 	bool	valid = false;   // If true device is connected and mounted.
-	uint8_t	driveNumber = 0; // Physical drive number.
 	uint8_t	ldNumber = 0;    // Logical drive number.
-	uint8_t	driveType = 0;       // USB, SDHC, SDHX or littleFS
-	uint8_t	devAddress = 0;      // MSC device address
-	uint8_t	fatType = 0;     // FAT32 or ExFat
-	uint8_t	ifaceType = 0;	 // Interface type USB, SDHC, SPI.
-	uint8_t osType = 0;		// Type of OS: 0 = PFsFile or 1 = File
+	int     driveID  = -1;	 // Drive ID (0-3).
+	uint8_t	driveType = 0;   // USB, SDHC, SDHX or littleFS
+	uint8_t	fatType = 0;     // FAT32 or ExFat or EXT4.
+	uint8_t	ifaceType = 0;	 // Interface type USB, SDHC, SPI or LFS
 } deviceDecriptorEntry_t;
 
 // diskIO class
-class diskIO : public PFsVolume
+class diskIO // : public USBFilesystem
 {
 public:
-	PFsVolume mp[CNT_PARITIONS]; // Setup an array of global mount points.
+//	diskIO(USBHost &host);
+//	diskIO(USBHost *host);
+	FS *fs[CNT_PARITIONS];		 // FS file abstraction.
 	deviceDecriptorEntry_t drvIdx[CNT_PARITIONS]; // An array of device descriptors.
+
 	uint8_t error(void);
 	void setError(uint8_t error);
-	uint64_t usedSize(uint8_t drive_number);
-	uint64_t totalSize(uint8_t drive_number);
+	bool mkfs(char *path, int fat_type);
 	bool init();
-	void checkDrivesConnected(void);
-	int  getLogicalDriveNumber(char *path);	
+	void findNextDrive(void);
+	void connectedMSCDrives(void);
+	void initSDDrive(uint8_t sdDrive);
+	int  getLogicalDriveNumber(const char *path);	
 	int  isDriveSpec(char *driveSpec, bool preservePath);
 	int  changeDrive(char *driveSpec);
-	bool chdir(char *dirPath);
-	bool mkdir(char *path);
-	bool rmdir(char *dirPath);
-	bool rm(char *dirPath);
-	bool exists(char *dirPath);
-	bool rename(char *oldpath, char *newpath);
-	bool open(void *fp, char* dirPath, oflag_t oflag = O_RDONLY);
-	bool close(void *fp);
-	int  read(void *fp, void *buf, size_t count);
-	size_t  write(void *fp, void *buf, size_t count);
-	off_t  lseek(void *fp, off_t offset, int whence);
-	void fflush(void *fp);	
-	int64_t ftell(void *fp);
-#if defined(ARDUINO_TEENSY41)
-	bool lfsExists(char *dirPath);
-	bool lfsOpen(void *fp, char* dirPath, oflag_t oflag = O_RDONLY);
-	bool lfsClose(void *fp);
-	int  lfsRead(void *fp, void *buf, size_t count);
-	size_t  lfsWrite(void *fp, void *buf, size_t count);
-	bool  lfsLseek(void *fp, off_t offset, int whence);
-	void lfsFflush(void *fp);	
-	int64_t lfsFtell(void *fp);
-#endif	
-	void processMSDrive(uint8_t drive_number, msController &msDrive, UsbFs &msc);
-	void processSDDrive(uint8_t drive_number);
-	void ProcessSPISD(uint8_t drive_number);
-	void ProcessLFS(uint8_t drive_number);
+	void changeVolume(uint8_t volume);
+	bool chdir(const char *dirPath);
+	bool mkdir(const char *path);
+	bool rmdir(const char *dirPath);
+	bool rm(const char *dirPath);
+	bool exists(const char *dirPath);
+	bool rename(const char *oldpath, const char *newpath);
+	bool open(File *fp, const char* dirPath, oflag_t oflag = O_RDONLY);
+	bool close(File *fp);
+	int  read(File *fp, void *buf, size_t count);
+	size_t  write(File *fp, void *buf, size_t count);
+	off_t  lseek(File *fp, off_t offset, int whence);
+	void fflush(File *fp);	
+	int64_t ftell(File *fp);
+	bool processSDDrive(void);
+	bool ProcessSPISD(void);
+	bool ProcessLFS(uint8_t drive_number, const char *name);
 	bool processPathSpec(char *path);
-	bool isConnected(uint8_t deviceNumber);
 	uint8_t getVolumeCount(void);
 	void listAvailableDrives(print_t* p);
 	bool relPathToAbsPath(const char *path_in, char * path_out, int outLen);
+	int getExt4PartIndex(const char *vName);
+	int getExt4DrvID(const char *vName);	
+	int getDrvIdx(USBDrive *device);
+	bool mountExt4Part(uint8_t partNum);
+	bool mountFATPart(uint8_t partNum);
+	bool umountFS(const char *device);
+//	char *dirName(const char *path);
+//	char *baseName(const char *path);
+
 	bool parsePathSpec(const char *pathSpec);
 	bool getWildCard(char *specs, char *pattern);
 	bool wildcardMatch(const char *pattern, const char *filename);
 	void displayDateTime(uint16_t date, uint16_t time);
-	bool lsDir(char *);
+	bool lsDir(const char *);
 	bool lsSubDir(void *dir);
-	bool lsFiles(void *dir, char *pattern, bool wc);
+	bool openDir(const char *pathSpec);
+	bool readDir(File *entry, char *dirEntry);
+	void closeDir(File *entry);
+	void printSpaces(int num);
+	bool lsFiles(void *dir, const char *pattern, bool wc);
 	uint8_t getCDN(void);
-	int getOsType(char *path);
+	void setCDN(uint8_t drive);
 	char *cwd(void);
+	void page(void);
+	
+	void dumpFilesystemList(uint8_t count);
+	
 	diskIO *dio() { return m_diskio; };
 private:
+	char savePath[256];
 	uint8_t count_mp = 0;
-	uint8_t currDrv = 0;
+	uint8_t currDrv = 4;
 	uint8_t m_error = 0;
 	SdFs sd;
 	SdFs sdSPI;
-	UsbFs msc[CNT_MSDRIVES];
+
+	SDClass sdSDIO;
+	SDClass spi;
 #if defined(ARDUINO_TEENSY41)
-	LittleFS_QPINAND myfs; // This will become an array of LFS devices.
-//	LittleFS_QSPIFlash myfs; // This will become an array of LFS devices.
+	LittleFS_QPINAND   QPINandFS;
+	LittleFS_QSPIFlash QSpiFlashFS;
+	LittleFS_Program   ProgFS;
+	LittleFS_SPIFlash  SPIFlashFS[2];
+	LittleFS_SPIFram   SPIRamFS;
+	LittleFS_SPINAND   SPINandFS[2];
 #endif
 	diskIO *m_diskio = this;
 };
 
+extern diskIO dio;
 #endif
