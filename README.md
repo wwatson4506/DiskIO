@@ -29,7 +29,7 @@ The main goal is to be able to unify all of the different access methods of SdFa
 #### Objectives:
 
 - Support up to 4 USB Mass Storage devices (2 supported at the moment to minimize memory usage) the native SDIO SD and LittleFS devices.
-- Allow for 4 partitions per Mass Storage device Except LittleFS and SDIO cards. Total of 32 logical drives are supported plus most types of LittleFS devices are defined (28:-34:).
+- Allow for 4 partitions per Mass Storage device except LittleFS and SDIO cards. Total of 32 logical drives are supported plus most types of LittleFS devices are defined (28:-34:).
 - Use a volume name for access to each logical drive or use an index number for array of mounted logical drives. LittleFS will use defined device names.
 - Be able to set a default drive (change drive). The first valid drive is set to default drive on boot up.
 - Be able to parse a full path spec including drive spec, relative path specs and wildcard processing.
