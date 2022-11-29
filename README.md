@@ -26,6 +26,10 @@ The main goal is to be able to unify all of the different access methods of SdFa
  * **ls** 5:../src/*.cpp
  * **rename** /QSPIFLASH/test.dat test1.dat
 
+### Updates:
+
+ - Teensy MTP support Added 11-27-22
+
 #### Objectives:
 
 - Support up to 4 USB Mass Storage devices (2 supported at the moment to minimize memory usage) the native SDIO SD and LittleFS devices.
@@ -58,7 +62,6 @@ The main goal is to be able to unify all of the different access methods of SdFa
 #### TODO:
  - Recursive copy and delete commands with use of wildcards.
  - Change "umount" command to "eject" and add seperate "mount" and "umount" commands to work with individual partitions instead of complete physical USB device.
- - Add MTP usage.
  - Finish adding support for EXT4 hard links,symbolic links, permissions, directory indexing etc...
 
 In DiskIOMB type "help" at the command line to see the commands that were modified and commands that were added for use with Teensy.
