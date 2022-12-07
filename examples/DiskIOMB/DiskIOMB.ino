@@ -4,15 +4,13 @@
 #include "Arduino.h"
 #include "diskIOMB.h"
 #include "diskIO.h"
-//#include "USBKeyboard.h"
-//#include "USBMouse.h"
-//#include "tft.h"
-//#include "vt100.h"
-//#include "fm.h"
+
 #if defined(ARDUINO_TEENSY41) || defined(ARDUINO_TEENSY40)
 //#include "T4_PowerButton.h" // To get free mem left.
 #endif
 //#define USE_TFT 1	//Uncomment this to use with RA8876 TFT. 
+
+#define ASCII_ESC 27
 
 char historyBuf[100];
 char hostname[] = "Teensy";
@@ -40,17 +38,17 @@ void freeRam(char **param, uint8_t parCnt)
 
 void setup()
 {
-   while (!Serial) {
+  while (!Serial) {
     ; // wait for serial port to connect.
   }
-  
+
 #if defined(ARDUINO_TEENSY41) || defined(ARDUINO_TEENSY40)
   if(CrashReport)
 	Serial.print(CrashReport);
 #endif
   
   // This line works only with VT100 capable terminal program.
-  Serial.printf("%c",12); // Clear screen (VT100).
+  Serial.printf("%c[H%c[2J",ASCII_ESC,ASCII_ESC); // Home cursor, Clear screen (VT100).
 
   Serial.printf(F("DiskIOMB\r\n\r\n"));
   Serial.printf(F("The original version of microBox found here:\r\n"));
@@ -67,5 +65,8 @@ void setup()
 
 void loop()
 { 
+#ifdef USE_MTP
+  MTP.loop();
+#endif
   microbox.cmdParser(); // Monitor cmd input.
 }
