@@ -79,6 +79,8 @@ SDList_t DMAMEM sdfs[] = {
   {SD_SPI_CS, "SDSPI"}
 };
 
+uint32_t LFSRAM_SIZE = 65536; // probably more than enough...
+LittleFS_RAM lfsram;
 
 SdCardFactory cardFactory;
 // EXT usage with an SD SDIO card.
@@ -209,6 +211,10 @@ bool diskIO::mountExt4Part(uint8_t partNum) {
 	drvIdx[partNum].ifaceType = EXT4_TYPE;
 	drvIdx[partNum].valid = true;
 	ext4_mount_cnt++;
+#ifdef USE_MTP
+    uint32_t estore = MTP.addFilesystem(*drvIdx[partNum].fstype, (const char *)drvIdx[partNum].name);
+    Serial.printf("Set Storage Index drive 3 to %u\n", estore);
+#endif
 	return true;
 }
 
@@ -225,6 +231,10 @@ bool diskIO::mountFATPart(uint8_t partNum) {
 	drvIdx[idx].driveType = DEVICE_TYPE_USB;
 	drvIdx[idx].ifaceType = USB_TYPE;
 	drvIdx[idx].valid = true;
+#ifdef USE_MTP
+    uint32_t estore = MTP.addFilesystem(*drvIdx[partNum].fstype, (const char *)drvIdx[partNum].name);
+    Serial.printf("Set Storage Index drive 3 to %u\n", estore);
+#endif
 	return true;
 }
 
@@ -308,7 +318,10 @@ void diskIO::initSDDrive(uint8_t sdDrive) {
 	else
 		drvIdx[slot].ifaceType = SDIO_TYPE;
 	drvIdx[slot].valid = true;
-
+#ifdef USE_MTP
+    uint32_t estore = MTP.addFilesystem(*drvIdx[slot].fstype, (const char *)drvIdx[slot].name);
+    Serial.printf("Set Storage Index drive 3 to %u\n", estore);
+#endif
 }
 
 //---------------------------------------------------------------------------
@@ -380,6 +393,13 @@ bool diskIO::init() {
 	delay(3000); // Not sure why this delay needs to be this large?
 				 // But it does...
 
+#ifdef USE_MTP
+  if (lfsram.begin(LFSRAM_SIZE)) {
+    Serial.printf("Ram Drive of size: %u initialized\n", LFSRAM_SIZE);
+    uint32_t istore = MTP.addFilesystem(lfsram, "RAM");
+    Serial.printf("Set Storage Index drive to %u\n", istore);
+  }
+#endif
 #if defined(ARDUINO_TEENSY41)
 	ProcessLFS(LFS_DRIVE_QPINAND, (const char *)"QPINAND");
 	ProcessLFS(LFS_DRIVE_QSPIFLASH, (const char *)"QSPIFLASH");
@@ -388,20 +408,18 @@ bool diskIO::init() {
 	ProcessLFS(LFS_DRIVE_SPINAND3, (const char *)"SPINAND3");
 	ProcessLFS(LFS_DRIVE_SPINAND4, (const char *)"SPINAND4");
 #endif	
-
 	// Process MSC drives (4 MAX).
 	connectedMSCDrives(); // Modified version of KurtE's version.
-
 	// Process SDIO drive.
 	processSDDrive();
-
 	// Process SD SPI drive.
 //	ProcessSPISD(); // WIP.
-
 	// Initialize SD drives (SDIO and SPI).
 //	if(sdfs[0].sd.begin(sdfs[0].csPin)) initSDDrive(0);
 	if(sdfs[1].sd.begin(sdfs[1].csPin)) initSDDrive(1); // SDSPI.
-
+#ifdef USE_MTP
+  MTP.begin();
+#endif
 	findNextDrive(); // Find first available drive.
 	mscError = 0;		  // Clear errors
 	return true;
@@ -447,6 +465,10 @@ bool diskIO::processSDDrive(void)
     drvIdx[slot].ifaceType = EXT4_TYPE;
     drvIdx[slot].valid = true;
 	ext4_mount_cnt++;
+#ifdef USE_MTP
+    uint32_t estore = MTP.addFilesystem(*drvIdx[slot].fstype, (const char *)drvIdx[slot].name);
+    Serial.printf("Set Storage Index drive 3 to %u\n", estore);
+#endif
   } else { // FAT type.
     if(sdfs[0].sd.begin(sdfs[0].csPin)) initSDDrive(0);
   }
@@ -519,8 +541,7 @@ bool diskIO::ProcessSPISD(void) {
 
 #if defined(ARDUINO_TEENSY41)
 // -------------------------------------------------------------
-// Mount LFS device if possible.
-// (KurtE).
+// Mount available LFS devices.
 // -------------------------------------------------------------
 bool diskIO::ProcessLFS(uint8_t drive_number, const char *name) {
 #ifdef TalkToMe
@@ -529,39 +550,64 @@ bool diskIO::ProcessLFS(uint8_t drive_number, const char *name) {
   char tmpStr[256];  // Used to avoid [-Wrestrict] warning.
   uint8_t slot = drive_number;
   drvIdx[slot].ldNumber = slot;
+  uint32_t estore;
 
   switch(drive_number) {
 	case LFS_DRIVE_QPINAND:
 		if (!QPINandFS.begin()) return false;
 		drvIdx[slot].fstype = &QPINandFS;
+#ifdef USE_MTP
+		estore = MTP.addFilesystem(*drvIdx[slot].fstype, (const char *)drvIdx[slot].name);
+		Serial.printf("Set Storage Index drive %d (%s) to %u\n",slot, name, estore);
+#endif
 		break;
 	case LFS_DRIVE_QSPIFLASH:
 		if (!QSpiFlashFS.begin()) return false;
 		drvIdx[slot].fstype = &QSpiFlashFS;
+#ifdef USE_MTP
+		estore = MTP.addFilesystem(*drvIdx[slot].fstype, (const char *)drvIdx[slot].name);
+		Serial.printf("Set Storage Index drive %d (%s) to %u\n",slot, name, estore);
+#endif
 		break;
 	case LFS_DRIVE_QPINOR5:
-      pinMode(5,OUTPUT);
-      digitalWriteFast(5,HIGH);
-		if (!SPIFlashFS[0].begin(5,SPI)) return false;
+		pinMode(LFS_NOR5_CS,OUTPUT);
+		digitalWriteFast(LFS_NOR5_CS,HIGH);
+		if (!SPIFlashFS[0].begin(LFS_NOR5_CS,SPI)) return false;
 		drvIdx[slot].fstype = &SPIFlashFS[0];
+#ifdef USE_MTP
+		estore = MTP.addFilesystem(*drvIdx[slot].fstype, (const char *)drvIdx[slot].name);
+		Serial.printf("Set Storage Index drive %d (%s) to %u\n",slot, name, estore);
+#endif
 		break;
 	case LFS_DRIVE_QPINOR6:
-      pinMode(6,OUTPUT);
-      digitalWriteFast(6,HIGH);
-		if (!SPIFlashFS[1].begin(6,SPI)) return false;
+		pinMode(LFS_NOR6_CS,OUTPUT);
+		digitalWriteFast(LFS_NOR6_CS,HIGH);
+		if (!SPIFlashFS[1].begin(LFS_NOR6_CS,SPI)) return false;
 		drvIdx[slot].fstype = &SPIFlashFS[1];
+#ifdef USE_MTP
+		estore = MTP.addFilesystem(*drvIdx[slot].fstype, (const char *)drvIdx[slot].name);
+		Serial.printf("Set Storage Index drive %d (%s) to %u\n",slot, name, estore);
+#endif
 		break;
 	case LFS_DRIVE_SPINAND3:
-      pinMode(3,OUTPUT);
-      digitalWriteFast(3,HIGH);
-		if (!SPINandFS[0].begin(3,SPI)) return false;
+		pinMode(LFS_NAND3_CS,OUTPUT);
+		digitalWriteFast(LFS_NAND3_CS,HIGH);
+		if (!SPINandFS[0].begin(LFS_NAND3_CS,SPI)) return false;
 		drvIdx[slot].fstype = &SPINandFS[0];
+#ifdef USE_MTP
+		estore = MTP.addFilesystem(*drvIdx[slot].fstype, (const char *)drvIdx[slot].name);
+		Serial.printf("Set Storage Index drive %d (%s) to %u\n",slot, name, estore);
+#endif
 		break;
 	case LFS_DRIVE_SPINAND4:
-      pinMode(4,OUTPUT);
-      digitalWriteFast(4,HIGH);
-		if (!SPINandFS[1].begin(4,SPI)) return false;
+		pinMode(LFS_NAND4_CS,OUTPUT);
+		digitalWriteFast(LFS_NAND4_CS,HIGH);
+		if (!SPINandFS[1].begin(LFS_NAND4_CS,SPI)) return false;
 		drvIdx[slot].fstype = &SPINandFS[1];
+#ifdef USE_MTP
+		estore = MTP.addFilesystem(*drvIdx[slot].fstype, (const char *)drvIdx[slot].name);
+		Serial.printf("Set Storage Index drive %d (%s) to %u\n",slot, name, estore);
+#endif
 		break;
 	default:
 		return false;
@@ -656,6 +702,9 @@ bool diskIO::umountFS(const char * device) {
 			}
 			memset((uint8_t *)&drvIdx[(drv*4)+i], 0, sizeof(drvIdx[(drv*4)+i]));
 			memset((uint8_t *)&ml[(drv*4)+i], 0, sizeof(ml[(drv*4)+i]));
+#ifdef USE_MTP
+//		MTP.storage()->removeFilesystem((drv*4)+i);
+#endif
 		}
 		ext4fsp[drv]->clr_BDL_entry(drv);
 	}
@@ -1615,7 +1664,7 @@ int diskIO::read(File *fp, void *buf, size_t count) {
 	setError(DISKIO_PASS); // Clear any existing error codes.
 	br = fp->read(buf, count);
 	if(br <= 0) {
-		setError(READ_ERROR);
+		setError(READERROR);
 		return br;
 	}
 	return br;
@@ -1633,7 +1682,7 @@ size_t diskIO::write(File *fp, void *buf, size_t count) {
 	setError(DISKIO_PASS); // Clear any existing error codes.
 	bw = fp->write(buf, count);
 	if(bw != (int)count) {
-		setError(WRITE_ERROR);
+		setError(WRITEERROR);
 		return bw;
 	}
 	return bw;

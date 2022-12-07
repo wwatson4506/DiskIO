@@ -9,14 +9,14 @@
 #define _BASHCMD_H_
 
 #define __PROG_TYPES_COMPAT__
-#include <Arduino.h>
+#include "Arduino.h"
 
 //#define AUDIOPLAY 1
 
 #define MAX_CMD_NUM 128
 
 #define MAX_CMD_BUF_SIZE 256
-#define MAX_PATH_LEN 256
+#define MAXPATHLEN 256
 
 #define PARTYPE_INT    0x01
 #define PARTYPE_DOUBLE 0x02
@@ -136,7 +136,7 @@ private:
     bool HandleEscSeq(unsigned char ch);
     void ReadWriteParamEE(bool write);
 private:
-    char currentDir[MAX_PATH_LEN];
+    char currentDir[MAXPATHLEN];
 
     char cmdBuf[MAX_CMD_BUF_SIZE];
     char dirBuf[256];

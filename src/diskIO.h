@@ -6,6 +6,12 @@
 #include "USBHost_t36.h"
 #include "ext4FS.h"
 
+//#define USE_MTP 1
+
+#ifdef USE_MTP
+#include <MTP_Teensy.h>
+#endif
+
 #if defined(ARDUINO_TEENSY41)
 #include "LittleFS.h" // T4.1 only
 #endif
@@ -32,6 +38,13 @@
 #define LFS_DRIVE_QPINOR6   31 //27
 #define LFS_DRIVE_SPINAND3  32 //28
 #define LFS_DRIVE_SPINAND4  33 //29
+//************************************************
+// Define LFS CS numbers.
+//************************************************
+#define LFS_NAND3_CS 3 
+#define LFS_NAND4_CS 4 
+#define LFS_NOR5_CS  5 
+#define LFS_NOR6_CS  6 
 
 //************************************************
 // Define SDIO EXT4 block device number and mount
@@ -67,7 +80,7 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 
 // Path spec defines.
 #define DIRECTORY_SEPARATOR "/"
-#define MAX_FILENAME_LEN	256
+//#define MAX_FILENAME_LEN	256
 #define MAX_SUB_DEPTH		256
 #define MAX_PARTITIONS		4
 #define NUMSPACES			40
@@ -91,8 +104,8 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 #define OPEN_FAILED			4
 #define CLOSE_FAILED		5
 #define SEEK_ERROR			6
-#define READ_ERROR			7
-#define WRITE_ERROR			8
+#define READERROR			7
+#define WRITEERROR			8
 #define FTELL_ERROR			9
 #define RENAME_ERROR		10
 #define MKDIR_ERROR			11

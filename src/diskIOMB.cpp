@@ -1174,11 +1174,11 @@ void microBox::cp(char** pParam, uint8_t parCnt) {
 	dioMB.close(&dest);
 	// Proccess posible errors.
 	if(br < 0) {
-		dioMB.setError(READ_ERROR);
+		dioMB.setError(READERROR);
 		ErrorDir(F("cp"));
 		return;
 	} else if(bw < br) {
-		dioMB.setError(WRITE_ERROR); // Can also be disk full error.
+		dioMB.setError(WRITEERROR); // Can also be disk full error.
 		ErrorDir(F("cp"));
 		return;
 	}
