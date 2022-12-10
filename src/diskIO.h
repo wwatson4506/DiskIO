@@ -129,9 +129,9 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 // Some of the entries are probably redundant a this point.
 typedef struct {
 	FS		*fstype = nullptr;
-	char	name[32];        // Volume name as a drive name.
 	char	currentPath[256];    // Current default path spec.
 	char	fullPath[256];	 // Full path name. Includes Logical drive name.
+	char	name[32];        // Volume name as a drive name.
 	bool	valid = false;   // If true device is connected and mounted.
 	uint8_t	ldNumber = 0;    // Logical drive number.
 	int     driveID  = -1;	 // Drive ID (0-3).
@@ -174,7 +174,6 @@ public:
 	void fflush(File *fp);	
 	int64_t ftell(File *fp);
 	bool processSDDrive(void);
-	bool ProcessSPISD(void);
 	bool ProcessLFS(uint8_t drive_number, const char *name);
 	bool processPathSpec(char *path);
 	uint8_t getVolumeCount(void);

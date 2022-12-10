@@ -1114,8 +1114,6 @@ void microBox::rename(char** pParam, uint8_t parCnt) {
 	}
 }
 
-//uint32_t buffer[bufferSize];  // File copy buffer
-
 void microBox::cp(char** pParam, uint8_t parCnt) {
     int32_t br = 0, bw = 0;          // File read/write count
 	uint32_t bufferSize = 32*1024; // Buffer size. Play with this:)
