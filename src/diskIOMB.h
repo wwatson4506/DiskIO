@@ -45,6 +45,8 @@
 #define TELNET_STATE_DONT 5
 #define TELNET_STATE_CLOSE 6
 
+#define ASCII_ESC 27
+
 typedef struct
 {
     const char *cmdName;

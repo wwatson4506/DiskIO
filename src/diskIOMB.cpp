@@ -992,7 +992,8 @@ void microBox::ReadWriteParamEE(bool write) {
 }
 
 void microBox::clear(char** pParam, uint8_t parCnt) {
-	Serial.printf("%c",12);
+  // This line works only with VT100 capable terminal program.
+  Serial.printf("%c[H%c[2J",ASCII_ESC,ASCII_ESC); // Home cursor, Clear screen (VT100).
 }
 
 void microBox::help(char** pParam, uint8_t parCnt) {
