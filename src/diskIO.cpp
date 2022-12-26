@@ -79,8 +79,10 @@ SDList_t DMAMEM sdfs[] = {
   {SD_SPI_CS, "SDSPI"}
 };
 
+#ifdef USE_MTP
 uint32_t LFSRAM_SIZE = 65536; // probably more than enough...
 LittleFS_RAM lfsram;
+#endif
 
 SdCardFactory cardFactory;
 // EXT usage with an SD SDIO card.
