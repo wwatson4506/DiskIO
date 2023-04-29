@@ -280,7 +280,7 @@ void diskIO::connectedMSCDrives(void) {
 		Serial.printf(F("\n**************** A BAD THING JUST HAPPENED!!! ****************\n"));
 		Serial.printf(F("When unmounting an EXT4 drive data is written back to the drive.\n"));
 		Serial.printf(F("To avoid losing cached data, unmount drive before removing device.\n"));
-		Serial.printf(F("Unmounting and removing drive (%d) partition (%d) from drive list. \n"),i/4, i);
+		Serial.printf(F("Unmounting and removing USB drive (%d) filesystem (%d) from drive list. \n"),i/4, i);
 		Serial.printf(F("*****************************************************************\n\n"));
 		// Manualy unmount and unregister EXT4 drive. Presumably was not done before removed.
 		// Reset device descriptor.
@@ -300,7 +300,7 @@ void diskIO::connectedMSCDrives(void) {
 		Serial.printf(F("\n**************** A BAD THING JUST HAPPENED!!! ****************\n"));
 		Serial.printf(F("FAT32/EXFAT partition not cleanly unmounted.\n"));
 		Serial.printf(F("To avoid losing cached data, unmount drive before removing device\n"));
-		Serial.printf(F("Unmounting and removing drive (%d) partition (%d) from drive list. \n"),i/4, i);
+		Serial.printf(F("Unmounting and removing USB drive (%d) filesystem (%d) from drive list. \n"),i/4, i);
 		Serial.printf(F("*****************************************************************\n\n"));
 		filesystem_list[i]->mscfs.end();
 		memset((uint8_t *)&drvIdx[i], 0, sizeof(drvIdx[i]));
