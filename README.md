@@ -13,7 +13,7 @@
  #### https://github.com/wwatson4506/Arduino-Teensy-Codec-lib (If playing music files enabled)
 
  
-Built using Arduino 1.8.19 and Teensyduino 1.57/1.58B2 versions.
+Built using Arduino 1.8.19 and Teensyduino 1.57/1.59B2 versions.
 
 The main goal is to be able to unify all of the different access methods of SdFat, LittleFs, MSC and EXT4 filesystems into one API using FS abstraction methods. This is done by using an indexed list of device descriptors. One for each logical device (partition). You do not need to know what type of filesystem you are accessing. All methods work the same no matter what the partition type is thanks to FS. This is done by using a drive specification which can be a logical drive number "0:"-"38:" or a volume label "/volume name/".
 
@@ -28,7 +28,7 @@ The main goal is to be able to unify all of the different access methods of SdFa
 
 ### Updates:
 
- - Teensy MTP support Added 11-27-22
+ - Removed Teensy MTP support.
 
 #### Objectives:
 
@@ -56,7 +56,7 @@ The main goal is to be able to unify all of the different access methods of SdFa
 
  - DiskIOMB is a modified version of microBox used for testing and found here: http://sebastian-duell.de/en/microbox/index.html
  - When you plug in a USB drive it will be auto mounted. Supported file systems are SdFat, LittleFS and EXT4. Care must be taken to unmount the device before unplugging it. If not unmounted, you will get a warning about it. If the device is not removed it will be automatically remounted. The EXT4 filesystem writes current information to the drive and clears the cache before it unmounts and unregisters it. Hot plugging SD cards is not supported at this time. Not sure if it is practical to do this as most Teensys would be put in enclosures. Using USB drives seem more practical.
- - Only 4 EXT4 partitions are supported right now. Partition 4 is fixed for an SD card and is logical device "20:". 1 to 3 can be spread across two USB drives.
+ - Only 4 EXT4 partitions are supported right now. EXT4 device 4 is fixed for an SD card and is logical device "20:". 1 to 3 can be spread across two USB drives.
  - Multiple partiions can be a mix of EXT4, FAT32 and EXFAT. 4 partitions per physical device. SD cards support 1 partition only.
 
 #### TODO:
