@@ -48,7 +48,7 @@ The main goal is to be able to unify all of the different access methods of SdFa
 - DiskIOMB.ino: A simple cli for testing most diskIO functions and demonstrating unified access to different types of Mass Storage devices on the Teensy. (SdFat, LittleFS and EXT4). DiskIOMB easily allows adding commands that can be executed from the command line. 
 
 #### Playing Music Files:
-- Supported types are WAV, MP3, AAC, FLAC and RAW. In "DiskIOMB.h" line #14 un-comment the define "#define AUDIOPLAY 1" to enable playing music files and     You will need this library as well:
+- Supported types are WAV, MP3, AAC, FLAC and RAW. In "DiskIOMB.h" line #14 un-comment the define "#define AUDIOPLAY 1" to enable playing music files and you will need this library as well:
 #### https://github.com/wwatson4506/Arduino-Teensy-Codec-lib
 
 
