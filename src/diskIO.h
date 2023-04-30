@@ -15,7 +15,7 @@
 //***********************************************
 
 #if defined(ARDUINO_TEENSY41)
-#define CNT_PARITIONS 33 // Up to 33 partitions including LFS devices. 
+#define CNT_PARITIONS 34 // Up to 33 partitions including LFS devices. 
 #else
 #define CNT_PARITIONS 27 // Up to 27 partitions w/o lfs devices
 #endif
