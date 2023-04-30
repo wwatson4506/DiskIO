@@ -2,6 +2,7 @@
 
 #ifndef diskIO_h
 #define diskIO_h
+
 #include "SD.h"
 #include "USBHost_t36.h"
 #include "ext4FS.h"
@@ -140,8 +141,6 @@ class diskIO // : public USBFilesystem
 public:
 //	diskIO(USBHost &host);
 //	diskIO(USBHost *host);
-	FS *fs[CNT_PARITIONS];		 // FS file abstraction.
-	deviceDecriptorEntry_t drvIdx[CNT_PARITIONS]; // An array of device descriptors.
 
 	uint8_t error(void);
 	void setError(uint8_t error);

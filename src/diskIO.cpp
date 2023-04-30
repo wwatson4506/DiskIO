@@ -86,6 +86,9 @@ SdCard *extsd = cardFactory.newCard(SD_CONFIG);
 //SdCardFactory cardSpiFactory;
 //SdCard *extspisd = cardSpiFactory.newCard(SD_CONFIG);
 
+deviceDecriptorEntry_t drvIdx[CNT_PARITIONS] DMAMEM; // An array of device descriptors.
+FS *fs[CNT_PARITIONS];		 // FS file abstraction.
+
 static uint8_t mscError = DISKIO_PASS;
 File root;
 
@@ -294,7 +297,7 @@ void diskIO::connectedMSCDrives(void) {
 		if(i == currDrv) findNextDrive();   // If this was the current drive find the next one and
 											// make it the default drive.
       }
-      if(!*filesystem_list[i]) {	// FAT/EXFAT filesystem...
+      if((drvIdx[i].valid == true)) {	// FAT/EXFAT filesystem...
 		// Manualy unmount FAT/EXFAT drive. Presumably was not done before removed.
 		// Reset device descriptor.
 		Serial.printf(F("\n**************** A BAD THING JUST HAPPENED!!! ****************\n"));
@@ -452,6 +455,7 @@ bool diskIO::processSDDrive(void)
 #ifdef TalkToMe
   Serial.printf(F("Initialize SDIO SD card...\r\n"));
 #endif
+  char tmpStr[256] = {};  // Used to avoid [-Wrestrict] warning.
   uint8_t slot = LOGICAL_DRIVE_SDIO;
 
   // Init SD card (Block device 3) fixed.
@@ -474,7 +478,8 @@ bool diskIO::processSDDrive(void)
     }
     drvIdx[slot].ldNumber = slot;
     strcpy(drvIdx[slot].name, (const char *)ext4fsp[SDIO_BD]->getVolumeLabel());
-    sprintf(drvIdx[slot].fullPath ,"/%s/", drvIdx[slot].name);
+	sprintf(tmpStr,"/%s/", drvIdx[slot].name);
+	strcpy(drvIdx[slot].fullPath,tmpStr);
     drvIdx[slot].fstype = ext4fsp[SDIO_BD];
     drvIdx[slot].currentPath[0] = '\0';
     drvIdx[slot].fatType = EXT4_TYPE;
