@@ -3,7 +3,9 @@
 
 #include "Arduino.h"
 #include "diskIOMB.h"
-#include "diskIO.h"
+//#include "diskIO.h"
+
+extern USBHost myusb;
 
 char historyBuf[100];
 char hostname[] = "Teensy";
@@ -58,8 +60,6 @@ void setup()
 
 void loop()
 { 
-#ifdef USE_MTP
-  MTP.loop();
-#endif
+  myusb.Task();
   microbox.cmdParser(); // Monitor cmd input.
 }
