@@ -1206,14 +1206,14 @@ bool diskIO::lsDir(const char *dirPath) {
 	if(!processPathSpec(savePath)) return false;
 	// Show current logical drive name.
 	Serial.printf(F("Volume Label: %s\r\n"), drvIdx[currDrv].name);
-//	page(); // Display one page at a time. Prompt to continue.
+	page(); // Display one page at a time. Prompt to continue.
 	// Show full path name (with logical drive name).
 	// If no path spec given then show current path.
 	if(dirPath == (const char *)"")
 		Serial.printf(F("Full Path: %s\r\n"), cwd());
 	else
 		Serial.printf(F("Full Path: %s\r\n"), dirPath);
-//	page(); // Display one page at a time. Prompt to continue.
+	page(); // Display one page at a time. Prompt to continue.
 	// wildcards = true if any wildcards used else false.
 	wildcards = getWildCard((char *)savePath,pattern);  
 	if(!(dir = drvIdx[currDrv].fstype->open(savePath))) {
@@ -1251,7 +1251,7 @@ bool diskIO::lsDir(const char *dirPath) {
 			break;
 #endif
 	}
-//	page(); // Display one page at a time. Prompt to continue.
+	page(); // Display one page at a time. Prompt to continue.
 	if(currDrv != drive) {
 		changeVolume(drive);  // Change back to original logical drive. If changed.
 		currDrv = drive;    // Ditto with the drive index.
@@ -1275,7 +1275,7 @@ bool diskIO::lsSubDir(void *dir) {
 			Serial.printf(F("%s/"),fsDirEntry.name()); // Display SubDir filename + '/'.
 			for(uint8_t i = 0; i <= (NUMSPACES-strlen(fsDirEntry.name())); i++) Serial.printf(F(" "));
 			Serial.printf(F("<DIR>\r\n"));
-//			page(); // Display one page at a time. Prompt to continue.
+			page(); // Display one page at a time. Prompt to continue.
 		}
 	}
 	fsDirEntry.close(); // Done. Close sub-entry file.
@@ -1313,7 +1313,7 @@ bool diskIO::lsFiles(void *dir, const char *pattern, bool wc) {
 			Serial.printf(F("%9s %02d %02d %02d:%02d:%02d\r\n"), // Show date/time.
 							months[tm.mon],tm.mday,tm.year + 1900, 
 							tm.hour,tm.min,tm.sec);
-//			page(); // Display one page at a time. Prompt to continue.
+			page(); // Display one page at a time. Prompt to continue.
 		}
 	}
 	fsDirEntry.close(); // Done. Close sub-entry file.
