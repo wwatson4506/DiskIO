@@ -8,8 +8,12 @@
 #include "Arduino.h"
 #include "TimeLib.h"
 #include "diskIO.h"
+
 #ifdef USE_TFT
 extern RA8876_t3 tft;
+#endif
+#ifdef USE_VGA
+#include "VGA_4bit_T4.h"
 #endif
 
 // Setup USBHost_t36 and as many HUB ports as needed.
@@ -1326,6 +1330,9 @@ void diskIO::page(void) {
   lncnt++;
 #ifdef USE_TFT
   if (lncnt < tft.bottommarg()-1)
+#endif
+#ifdef USE_VGA
+  if(lncnt < vga4bit.getTheight()-1)
 #else
   if (lncnt < 35 )
 #endif
