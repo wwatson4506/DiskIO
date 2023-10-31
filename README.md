@@ -4,7 +4,7 @@
 
 ## This is work in progress and is strictly experimentation and/or proof of concept. 
 
-### Required libraries:
+### Required Libraries:
  
  #### https://github.com/wwatson4506/USBHost_t36/tree/ext4FS_additions
  
