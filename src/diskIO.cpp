@@ -620,7 +620,7 @@ bool diskIO::umountFS(const char * device) {
 		drv = ml[idx].parent_bd.dev_id;
 		for(int i = 0; i < 4; i++) {
 			if(ml[(drv*4)+i].pt == EXT4_TYPE && ml[(drv*4)+i].mounted) {
-				if(!ext4fsp[drv]->lwext_umount((drv*4)+i)) {
+				if(ext4fsp[drv]->lwext_umount((drv*4)+i)) {
 					setError(UMOUNT_FAILED);
 					return false;
 				}
