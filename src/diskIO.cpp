@@ -1232,21 +1232,21 @@ bool diskIO::lsDir(const char *dirPath) {
 	// Show free space left on this device.
 	switch(drvIdx[currDrv].ifaceType) {
 		case USB_TYPE:
-			Serial.printf(F("Free Space: %lu\r\n"),
+			Serial.printf(F("Free Space: %llu\r\n"),
 			filesystem_list[currDrv]->totalSize()-filesystem_list[currDrv]->usedSize());
 			break;
 		case SDIO_TYPE:
-			Serial.printf(F("Free Space: %lu\r\n"),
+			Serial.printf(F("Free Space: %llu\r\n"),
 			sdfs[0].sd.totalSize()-sdfs[0].sd.usedSize());
 			break;
 		case SPI_TYPE:
-			Serial.printf("Free Space: %lu\r\n",
+			Serial.printf("Free Space: %llu\r\n",
 			sdfs[1].sd.totalSize()-sdfs[1].sd.usedSize());
 			break;
 #if defined(ARDUINO_TEENSY41)
 		case LFS_TYPE:
 		case EXT4_TYPE:
-			Serial.printf(F("Free Space: %lu\r\n"),
+			Serial.printf(F("Free Space: %llu\r\n"),
 			drvIdx[currDrv].fstype->totalSize()-drvIdx[currDrv].fstype->usedSize());
 			break;
 #endif
