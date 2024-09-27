@@ -147,6 +147,9 @@ public:
 //	diskIO(USBHost &host);
 //	diskIO(USBHost *host);
 
+	FS *fs[CNT_PARITIONS];		 // FS file abstraction.
+	deviceDecriptorEntry_t drvIdx[CNT_PARITIONS]; // An array of device descriptors.
+
 	uint8_t error(void);
 	void setError(uint8_t error);
 	bool mkfs(char *path, int fat_type);
