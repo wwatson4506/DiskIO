@@ -624,7 +624,11 @@ bool diskIO::umountFS(const char * device) {
 					setError(UMOUNT_FAILED);
 					return false;
 				}
-				ext4_mount_cnt--;
+				if(ext4_device_unregister(ml[(drv*4)+i].pname)) {
+					setError(UNREGISTER_FAILED);
+					return false;
+				}
+				if(ext4_mount_cnt > 0) ext4_mount_cnt--;
 				Serial.printf("Unmounting partition %s.\n", ml[(drv*4)+i].pname);
 			} else {
 				if(drvIdx[(drv*4)+i].fatType != EXT4_TYPE && drvIdx[(drv*4)+i].valid) {
