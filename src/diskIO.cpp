@@ -624,7 +624,7 @@ bool diskIO::umountFS(const char * device) {
 					setError(UMOUNT_FAILED);
 					return false;
 				}
-				if(ext4_device_unregister(ml[(drv*4)+i].pname)) {
+				if(ext4_device_unregister(ml[(drv*4)+i].pname) != ENOENT) {
 					setError(UNREGISTER_FAILED);
 					return false;
 				}
