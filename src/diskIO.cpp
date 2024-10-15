@@ -8,9 +8,12 @@
 #include "Arduino.h"
 #include "TimeLib.h"
 #include "diskIO.h"
+
 #ifdef USE_TFT
-extern RA8876_t3 tft;
+#include <RA8876_t41_p.h>
+extern RA8876_t41_p tft;
 #endif
+
 #ifdef USE_VGA
 #include "VGA_4bit_T4.h"
 #endif
