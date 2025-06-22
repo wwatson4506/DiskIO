@@ -266,7 +266,7 @@ void diskIO::connectedMSCDrives(void) {
 #ifdef TalkToMe
   Serial.printf(F("connectedMSCDrives()...\r\n"));
 #endif
-
+  myusb.Task();
   // check and init all available USB drives for possible ext4 partitions.
   for (uint16_t drive_index = 0; drive_index < (CNT_DRIVES); drive_index++) {
 	USBDrive *pdrive = drive_list[drive_index];
@@ -431,16 +431,16 @@ bool diskIO::init() {
 
 	// Initialize USBHost_t36
 	myusb.begin();
-    myusb.Task();
-
 	delay(1500); // Not sure why this delay needs to be this large?
+
 	// Process MSC drives (4 MAX).
 	connectedMSCDrives(); // Modified version of KurtE's version.
 
+    // Process littleFS flash drives if connected.
 #if defined(ARDUINO_TEENSY41)
 	ProcessLFS(LFS_DRIVE_QPINAND, (const char *)"QPINAND");
 	ProcessLFS(LFS_DRIVE_QSPIFLASH, (const char *)"QSPIFLASH");
-#if !defined(USE_VGA)
+#if !defined(USE_VGA) // VGA display is using FlexIO pins 01,11,12 and 13 right now!
 	ProcessLFS(LFS_DRIVE_QPINOR5, (const char *)"SPIFLASH5");
 	ProcessLFS(LFS_DRIVE_QPINOR6, (const char *)"SPIFLASH6");
 	ProcessLFS(LFS_DRIVE_SPINAND3, (const char *)"SPINAND3");
