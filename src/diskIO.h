@@ -13,12 +13,13 @@
 
 //***********************************************
 // un-comment to use TFT library.
-//#define USE_TFT
+//#define USE_TFT 1
 //***********************************************
+
 
 //***********************************************
 // un-comment to use VGA_4bit_T4 library.
-//#define USE_VGA
+#define USE_VGA
 //***********************************************
 
 //***********************************************
@@ -98,29 +99,26 @@ const int FlashChipSelect = 6; // PJRC AUDIO BOARD is 10 // Tested NOR 64MB on #
 #define LFS_TYPE	5
 #endif
 
-// Four partition slots per physical device
-#define SLOT_OFFSET 4
-
 // Error codes
-#define DISKIO_PASS		0
+#define DISKIO_PASS			0
 #define INVALID_PATH_NAME	1
-#define PATH_EXISTS		2
+#define PATH_EXISTS			2
 #define PATH_NOT_EXIST		3
-#define OPEN_FAILED		4
+#define OPEN_FAILED			4
 #define CLOSE_FAILED		5
-#define SEEK_ERROR		6
-#define READERROR		7
-#define WRITEERROR		8
-#define FTELL_ERROR		9
+#define SEEK_ERROR			6
+#define READERROR			7
+#define WRITEERROR			8
+#define FTELL_ERROR			9
 #define RENAME_ERROR		10
-#define MKDIR_ERROR		11
-#define RMDIR_ERROR		12
-#define RM_ERROR		13
+#define MKDIR_ERROR			11
+#define RMDIR_ERROR			12
+#define RM_ERROR			13
 #define DISK_FULL_ERROR		14
 #define FORMAT_ERROR		15
 #define AUDIO_WAV_PLAY_ERR	16
 #define UMOUNT_FAILED		17
-#define INVALID_VOLUME_NAME	18
+#define INVALID_VOLUME_NAME 18
 #define UNREGISTER_FAILED	19
 #define LDRIVE_NOT_FOUND	252	
 #define DEVICE_NOT_CONNECTED 253
