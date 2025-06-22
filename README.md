@@ -1,19 +1,19 @@
 # DiskIO
 
-## This repository attempts to integrate all of the various filesystems for the T3.6/T4.0/T4.1/MicroMod.
+## This repository attempts to integrate all of the various filesystems for the T3.6/T4.0/T4.1/MicroMod and DevBoard4-5.
 
 ## This is work in progress and is strictly experimentation and/or proof of concept. 
 
 ### Required Libraries:
- 
+
  #### https://github.com/wwatson4506/USBHost_t36/tree/ext4FS_additions
- 
+
  #### https://github.com/wwatson4506/TeensyEXT4/tree/TeensyEXT4V3
- 
+
  #### https://github.com/wwatson4506/Arduino-Teensy-Codec-lib (If playing music files enabled)
 
- 
-Built using Arduino 1.8.19 and Teensyduino 1.57/1.59B3 versions.
+
+Built using Arduino 1.8.19 and Teensyduino 1.57/1.60B4 versions.
 
 The main goal is to be able to unify all of the different access methods of SdFat, LittleFs, MSC and EXT4 filesystems into one API using FS abstraction methods. This is done by using an indexed list of device descriptors. One for each logical device (partition). You do not need to know what type of filesystem you are accessing. All methods work the same no matter what the partition type is thanks to FS. This is done by using a drive specification which can be a logical drive number "0:"-"38:" or a volume label "/volume name/".
 
@@ -29,7 +29,9 @@ The main goal is to be able to unify all of the different access methods of SdFa
 ### Updates:
 
  - Removed Teensy MTP support.
-
+ - Fixed extra non-existent devices being setup in the "connectedMSCDrives()" function.
+ - Fixed unrecognized USB drives on reboot or powerup.
+ 
 #### Objectives:
 
 - Support up to 4 USB Mass Storage devices (2 supported at the moment to minimize memory usage) the native SDIO SD and LittleFS devices.
