@@ -422,8 +422,9 @@ bool diskIO::init() {
 	setSyncProvider((getExternalTime)rtc_get);	// the function to get the time from the RTC
 	FsDateTime::setCallback(dateTime);		// Set callback
 
-//	pinMode(READ_PIN, OUTPUT); // Init disk read activity indicator.
-//	pinMode(WRITE_PIN, OUTPUT); // Init disk write activity indicator.
+//	pinMode(READ_PIN, OUTPUT); // Init disk read activity indicator. // Init disk read activity indicator. (in ext4FS.h)
+//	pinMode(WRITE_PIN, OUTPUT); // Init disk write activity indicator. // Init disk write activity indicator. (in ext4FS.h)
+
 
     // clear device descriptor array.
 	for(int ii = 0; ii < CNT_PARITIONS; ii++)
