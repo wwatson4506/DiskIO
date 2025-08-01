@@ -28,8 +28,8 @@ USBHub hub4(myusb);
 // MSC objects.
 USBDrive drive1(myusb);
 USBDrive drive2(myusb);
-USBDrive drive3(myusb);
-USBDrive drive4(myusb);
+//USBDrive drive3(myusb);
+//USBDrive drive4(myusb);
 
 DMAMEM USBFilesystem msFS1(myusb);
 DMAMEM USBFilesystem msFS2(myusb);
@@ -93,7 +93,7 @@ SdCard *extsd = cardFactory.newCard(SD_CONFIG);
 //SdCard *extspisd = cardSpiFactory.newCard(SD_CONFIG);
 
 deviceDecriptorEntry_t drvIdx[CNT_PARITIONS] DMAMEM; // An array of device descriptors.
-//FS *fs[CNT_PARITIONS];		 // FS file abstraction.
+FS *fs[CNT_PARITIONS];		 // FS file abstraction.
 
 static uint8_t mscError = DISKIO_PASS;
 File root;
@@ -275,13 +275,12 @@ void diskIO::connectedMSCDrives(void) {
   for (uint8_t i = 0; i < CNT_MSC; i++) {
 	// If partition type is EXT4 type (0x83) then setup EXT4 partition
 	// else setup windows type partitions.
-	if((ml[i].pt == EXT4_TYPE) &&
-	   (!ml[i].mounted) &&
+	if((ml[i].pt == EXT4_TYPE) && (!ml[i].mounted) && // Mounted
 	   (ext4_mount_cnt < CONFIG_EXT4_BLOCKDEVS_COUNT)) {
       // Setup EXT4 Partition.
 	  mountExt4Part(i);
 	} else if (*filesystem_list[i] &&
-			  (filesystem_list[i]->mscfs.fatType() != EXT4_TYPE) &&
+			  (filesystem_list[i]->mscfs.fatType() != EXT4_TYPE) && 
 			  (drive_list[i/4]->msDriveInfo.connected) && // Is this needed ??
 	          (filesystem_list[i]->mscfs.fatType() != 0x00)) {
       // Setup FAT32/EXFAT Partition.
@@ -290,9 +289,7 @@ void diskIO::connectedMSCDrives(void) {
     // Check if USB device is still connected and Partition(s) were previously cleanly unmounted.
     if ((!drive_list[i/4]->msDriveInfo.connected) && (drvIdx[i].valid == true)) {
 	  // If not cleanly unmounted, complain, unmount and unregister EXT4 partition.
-	  if((ext4_mount_cnt > 0) &&
-	     (ml[i].mounted == true) &&
-	     (ml[i].pt == EXT4_TYPE)) { // No...
+	  if((ext4_mount_cnt > 0) && (ml[i].mounted == true) && (ml[i].pt == EXT4_TYPE)) { // No...
 		// EXT4 filesystem...
 		Serial.printf(F("\n**************** A BAD THING JUST HAPPENED!!! ****************\n"));
 		Serial.printf(F("When unmounting an EXT4 drive data is written back to the drive.\n"));
@@ -313,7 +310,7 @@ void diskIO::connectedMSCDrives(void) {
       }
 	  // If not cleanly unmounted, complain and  unmount and unregister FAT partition.
       if((drvIdx[i].valid == true)) {	// FAT/EXFAT filesystem...
- 		// Manualy unmount FAT/EXFAT drive. Presumably was not done before removed.
+		// Manualy unmount FAT/EXFAT drive. Presumably was not done before removed.
 		// Reset device descriptor.
 		Serial.printf(F("\n**************** A BAD THING JUST HAPPENED!!! ****************\n"));
 		Serial.printf(F("FAT32/EXFAT partition not cleanly unmounted.\n"));
@@ -331,7 +328,7 @@ void diskIO::connectedMSCDrives(void) {
 }
 
 //----------------------------------------------------------------------
-// Initialize (0)SDIO/(1)SDSPI Drive. SDSPI does not suppoert EXT4.
+// Initialize (0)SDIO/(1)SDSPI Drive. SDSPI does not support EXT4.
 //----------------------------------------------------------------------
 void diskIO::initSDDrive(uint8_t sdDrive) {
 #ifdef TalkToMe
@@ -422,9 +419,8 @@ bool diskIO::init() {
 	setSyncProvider((getExternalTime)rtc_get);	// the function to get the time from the RTC
 	FsDateTime::setCallback(dateTime);		// Set callback
 
-//	pinMode(READ_PIN, OUTPUT); // Init disk read activity indicator. // Init disk read activity indicator. (in ext4FS.h)
-//	pinMode(WRITE_PIN, OUTPUT); // Init disk write activity indicator. // Init disk write activity indicator. (in ext4FS.h)
-
+//	pinMode(READ_PIN, OUTPUT); // Init disk read activity indicator. (in ext4FS.h)
+//	pinMode(WRITE_PIN, OUTPUT); // Init disk write activity indicator. (in ext4FS.h)
 
     // clear device descriptor array.
 	for(int ii = 0; ii < CNT_PARITIONS; ii++)
@@ -432,16 +428,16 @@ bool diskIO::init() {
 
 	// Initialize USBHost_t36
 	myusb.begin();
-	delay(1500); // Not sure why this delay needs to be this large?
+    myusb.Task();
 
+	delay(1500); // Not sure why this delay needs to be this large?
 	// Process MSC drives (4 MAX).
 	connectedMSCDrives(); // Modified version of KurtE's version.
 
-    // Process littleFS flash drives if connected.
 #if defined(ARDUINO_TEENSY41)
 	ProcessLFS(LFS_DRIVE_QPINAND, (const char *)"QPINAND");
 	ProcessLFS(LFS_DRIVE_QSPIFLASH, (const char *)"QSPIFLASH");
-#if !defined(USE_VGA) // VGA display is using FlexIO pins 01,11,12 and 13 right now!
+#if !defined(USE_VGA)
 	ProcessLFS(LFS_DRIVE_QPINOR5, (const char *)"SPIFLASH5");
 	ProcessLFS(LFS_DRIVE_QPINOR6, (const char *)"SPIFLASH6");
 	ProcessLFS(LFS_DRIVE_SPINAND3, (const char *)"SPINAND3");
@@ -1219,15 +1215,11 @@ bool diskIO::lsDir(const char *dirPath) {
 
 	bool wildcards = false;
 	setError(DISKIO_PASS); // Clear any existing error codes.
-
 	uint8_t drive = getCDN(); // Get current logical drive index number. Save it.
-
     // Preserve original path spec. Should only change if chdir() is used.	
 	strcpy(savePath,dirPath);
-
 	// Process path spec.  Return false if failed (-1).
 	if(!processPathSpec(savePath)) return false;
-
 	// Show current logical drive name.
 	Serial.printf(F("Volume Label: %s\r\n"), drvIdx[currDrv].name);
 	page(); // Display one page at a time. Prompt to continue.
@@ -1238,7 +1230,6 @@ bool diskIO::lsDir(const char *dirPath) {
 	else
 		Serial.printf(F("Full Path: %s\r\n"), dirPath);
 	page(); // Display one page at a time. Prompt to continue.
-
 	// wildcards = true if any wildcards used else false.
 	wildcards = getWildCard((char *)savePath,pattern);  
 	if(!(dir = drvIdx[currDrv].fstype->open(savePath))) {
@@ -1356,7 +1347,9 @@ void diskIO::page(void) {
 #ifdef TalkToMe
   Serial.printf(F("page()...\r\n"));
   Serial.printf(F("lncnt = %d\r\n"),lncnt);
-//  Serial.printf(F("tft.bottommarg()-1 = %d\r\n"),tft.bottommarg()-1);
+#ifdef USE_TFT
+  Serial.printf(F("tft.bottommarg()-1 = %d\r\n"),tft.bottommarg()-1);
+#endif
 #endif
   char chx;
   lncnt++;
