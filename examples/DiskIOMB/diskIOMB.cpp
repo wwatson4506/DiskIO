@@ -794,6 +794,9 @@ void microBox::Echo(char **pParam, uint8_t parCnt) {
 void microBox::Play(char** pParam, uint8_t parCnt) {
 	char tempPath[256];
 	int errAudio = 0;
+	uint32_t timeOut = 100; // Give plenty of time to start playing.
+	uint32_t start = 0;
+	
 	dioMB.setError(DISKIO_PASS); // Clear any existing error codes.
 	
 	if(pParam[0] == NULL) { // Invalid path spec.
@@ -801,11 +804,7 @@ void microBox::Play(char** pParam, uint8_t parCnt) {
 		ErrorDir(F("play"));
 		return;
 	}	
-	strcpy(tempPath, pParam[0]); // Preserve path spec.
-	if(!dioMB.exists(tempPath)) {
-		dioMB.setError(INVALID_PATH_NAME);
-		ErrorDir(F("play"));
-	}
+	sprintf(tempPath,"%s/%s",dioMB.drvIdx[dioMB.getCDN()].currentPath,pParam[0]);
 	playFileType = 0;
 	if (strstr(tempPath, ".MP3") != NULL || strstr(tempPath, ".mp3") != NULL) {
 		playFileType = 1;
@@ -820,32 +819,34 @@ void microBox::Play(char** pParam, uint8_t parCnt) {
 	} else {
 		playFileType = 0;
 	}
-	Serial.printf("Playing: %s\r\n",tempPath);
+	printf("Playing: %s, type %d\r\n",tempPath, playFileType);
     switch (playFileType) {
       case 1 :
-		errAudio = dioMB.getLogicalDriveNumber(tempPath);
-		if(errAudio < 0) {
- 			dioMB.setError(INVALID_PATH_NAME); // Invalid Path Spec.
-			ErrorDir(F("play"));
-			return;
-		}
-        errAudio = playMp31.play(drvIdx[errAudio].fstype,tempPath);
-        if(errAudio != 0) {
+        errAudio = playMp31.play(dioMB.drvIdx[dioMB.getCDN()].fstype,tempPath);
+        if(errAudio != 0) { // playMp31.play() returns an 'int'.
 			playMp31.stop();
 			dioMB.setError(errAudio); // Invalid Path Spec.
 			ErrorDir(F("play"));
 			return;
 		}
-        break;
-      case 2 :
-		errAudio = dioMB.getLogicalDriveNumber(tempPath);
-		if(errAudio < 0) {
- 			dioMB.setError(INVALID_PATH_NAME); // Invalid Path Spec.
+        if(!playMp31.isPlaying()) {
+			playMp31.stop();
+ 			dioMB.setError(AUDIO_MP3_PLAY_ERR); // Invalid Path Spec.
 			ErrorDir(F("play"));
 			return;
 		}
-		errAudio = playWav.play(drvIdx[errAudio].fstype,tempPath);
-		delay(100); // Workaround for wav file failure detection.
+
+        break;
+      case 2 :
+		errAudio = playWav.play(dioMB.drvIdx[dioMB.getCDN()].fstype,tempPath);
+        if(errAudio != 1) { // playWav.play() returns a 'bool'.
+			playWav.stop();
+			dioMB.setError(errAudio); // Invalid Path Spec.
+			ErrorDir(F("play"));
+			return;
+		}
+		start = millis();
+		while(!playWav.isPlaying() && (millis() <= (start+timeOut))) {yield();}
         if(!playWav.isPlaying()) {
 			playWav.stop();
  			dioMB.setError(AUDIO_WAV_PLAY_ERR); // Invalid Path Spec.
@@ -854,13 +855,7 @@ void microBox::Play(char** pParam, uint8_t parCnt) {
 		}
         break;
       case 3 :
-		errAudio = dioMB.getLogicalDriveNumber(tempPath);
-		if(errAudio < 0) {
- 			dioMB.setError(INVALID_PATH_NAME); // Invalid Path Spec.
-			ErrorDir(F("play"));
-			return;
-		}
-        errAudio = playAac.play(drvIdx[errAudio].fstype,tempPath);
+        errAudio = playAac.play(dioMB.drvIdx[dioMB.getCDN()].fstype,tempPath);
         if(errAudio != 0) {
 			playAac.stop();
 			dioMB.setError(errAudio); // Invalid Path Spec.
@@ -869,12 +864,6 @@ void microBox::Play(char** pParam, uint8_t parCnt) {
 		}
         break;
       case 4 :
-		errAudio = dioMB.getLogicalDriveNumber(tempPath);
-		if(errAudio < 0) {
- 			dioMB.setError(INVALID_PATH_NAME); // Invalid Path Spec.
-			ErrorDir(F("play"));
-			return;
-		}
         errAudio = playRaw.play(drvIdx[errAudio].fstype,tempPath);
         if(errAudio != 0) {
 			playRaw.stop();
@@ -884,12 +873,6 @@ void microBox::Play(char** pParam, uint8_t parCnt) {
 		}
         break;
       case 5:
-		errAudio = dioMB.getLogicalDriveNumber(tempPath);
-		if(errAudio < 0) {
- 			dioMB.setError(INVALID_PATH_NAME); // Invalid Path Spec.
-			ErrorDir(F("play"));
-			return;
-		}
         errAudio = playFlac.play(drvIdx[errAudio].fstype,tempPath);
         if(errAudio != 0) {
 			playFlac.stop();

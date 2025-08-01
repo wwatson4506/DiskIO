@@ -12,6 +12,9 @@
 #include "Arduino.h"
 #include "diskIO.h"
 
+// Uncomment this define if you want to play Wav, MP3, Aac, Raw or Flac
+// Music files. You must also include the "Arduino-Teensy-Codec-lib"
+// library found here: https://github.com/wwatson4506/Arduino-Teensy-Codec-lib.
 //#define AUDIOPLAY 1
 
 #define MAX_CMD_NUM 128
