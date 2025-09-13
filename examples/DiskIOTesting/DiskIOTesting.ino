@@ -9,7 +9,12 @@
 
 #include "diskIO.h"
 
-#define USE_TFT 0	//Uncomment this to use with RA8876 TFT. 
+USBHost myusb;
+
+USBHub hub1(myusb);
+USBHub hub2(myusb);
+USBHub hub3(myusb);
+USBHub hub4(myusb);
 
 diskIO dio;  // One instance of diskIO.
 
@@ -79,7 +84,7 @@ char *readLine(char *s) {
 // Use: 'listAvailableDrives(&Serial)' to list attached available volume labels
 // and logical drive numbers.
 
-char *device = "0:test1.txt"; // First logical drive on a USB physical drive.
+const char *device = "0:test1.txt"; // First logical drive on a USB physical drive.
 //char *device = "/16GEXFATP2/test1.txt"; // Second logical drive on a USB physical drive.
 //char *device = "/128GEXFATP1/test1.txt"; // Partition label name
 //const char *device = "28:test1.txt"; // Logical drive number (in this case QPINAND T4.1 only). 
