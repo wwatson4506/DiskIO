@@ -5,7 +5,12 @@
 #include "diskIOMB.h"
 //#include "diskIO.h"
 
-extern USBHost myusb;
+USBHost myusb;
+
+USBHub hub1(myusb);
+USBHub hub2(myusb);
+USBHub hub3(myusb);
+USBHub hub4(myusb);
 
 char historyBuf[100];
 char hostname[] = "Teensy";
