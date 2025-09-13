@@ -19,11 +19,8 @@ extern RA8876_t41_p tft;
 #endif
 
 // Setup USBHost_t36 and as many HUB ports as needed.
-USBHost myusb;
-USBHub hub1(myusb);
-USBHub hub2(myusb);
-USBHub hub3(myusb);
-USBHub hub4(myusb);
+extern USBHost myusb;
+
 
 // MSC objects.
 USBDrive drive1(myusb);

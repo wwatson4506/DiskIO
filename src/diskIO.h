@@ -11,16 +11,20 @@
 #include "LittleFS.h" // T4.1 only
 #endif
 
-//***********************************************
-// un-comment to use TFT library.
+//************************************************
+// The default is the Serial console. Uncomment
+// one of the two options below for TFT or VGA
+// output. This will require a USB keyboard and
+// USB mouse The mouse is optional.
+//************************************************
+// un-comment to use RA8876 TFT library.
 //#define USE_TFT 1
 //***********************************************
-
-
 //***********************************************
 // un-comment to use VGA_4bit_T4 library.
 //#define USE_VGA
 //***********************************************
+
 
 //***********************************************
 //#define TalkToMe  1 // Uncomment this for debug
