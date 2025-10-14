@@ -287,7 +287,7 @@ void diskIO::connectedMSCDrives(void) {
     if ((!drive_list[i/4]->msDriveInfo.connected) && (drvIdx[i].valid == true)) {
 	  // If not cleanly unmounted, complain, unmount and unregister EXT4 partition.
 	  if((ext4_mount_cnt > 0) && (ml[i].mounted == true) && (ml[i].pt == EXT4_TYPE)) { // No...
-		drvIdx[i].valid == false; // Invalidate drive.
+		drvIdx[i].valid = false; // Invalidate drive.
 		// EXT4 filesystem...
 		Serial.printf(F("\n**************** A BAD THING JUST HAPPENED!!! ****************\n"));
 		Serial.printf(F("When unmounting an EXT4 drive data is written back to the drive.\n"));
@@ -308,7 +308,7 @@ void diskIO::connectedMSCDrives(void) {
       }
 	  // If not cleanly unmounted, complain and  unmount and unregister FAT partition.
       if((drvIdx[i].valid == true)) {	// FAT/EXFAT filesystem...
-		drvIdx[i].valid == false; // Invalidate drive.
+		drvIdx[i].valid = false; // Invalidate drive.
 		// Manualy unmount FAT/EXFAT drive. Presumably was not done before removed.
 		// Reset device descriptor.
 		Serial.printf(F("\n**************** A BAD THING JUST HAPPENED!!! ****************\n"));
