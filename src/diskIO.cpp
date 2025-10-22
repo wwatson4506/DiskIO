@@ -1503,7 +1503,7 @@ bool diskIO::rmdir(const char *dirPath) {
 	strcpy(savePath,dirPath);
 	// Process path spec.  Return false if failed (-1).
 	if(processPathSpec(savePath)) {
-		if(!drvIdx[currDrv].fstype->rmdir(savePath)) setError(RMDIR_ERROR);
+		if(drvIdx[currDrv].fstype->rmdir(savePath) == false) setError(RMDIR_ERROR);
 	}
 	if(currDrv != drive) {
 		changeVolume(drive); // Change back to original logical drive. If changed.
@@ -1530,7 +1530,7 @@ bool diskIO::rm(const char *dirPath) {
 	strcpy(savePath,dirPath);
 	// Process path spec.  Return false if failed (-1).
 	if(processPathSpec(savePath)) {
-			if(!drvIdx[currDrv].fstype->remove(savePath)) setError(RM_ERROR);
+			if(drvIdx[currDrv].fstype->remove(savePath) == false) setError(RM_ERROR);
 	}
 	if(currDrv != drive) {
 		changeVolume(currDrv);
